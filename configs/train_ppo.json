@@ -28,7 +28,8 @@
       "policy_kwargs": {},
       "flatten_obs": true,
       "multi_agent_mode": "independent",
-      "opponent_policy": "random"
+      "opponent_policy": "random",
+      "device": "auto"
     }
   },
   "logging": {

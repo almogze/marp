@@ -31,6 +31,7 @@ class DQNConfig:
     train_every: int = 1
     target_update_freq: int = 200
     normalize_obs: bool = True
+    device: str = "auto"
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "DQNConfig":

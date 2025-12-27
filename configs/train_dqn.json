@@ -24,7 +24,8 @@
       "train_after": 100,
       "train_every": 1,
       "target_update_freq": 200,
-      "normalize_obs": true
+      "normalize_obs": true,
+      "device": "auto"
     }
   },
   "logging": {
