@@ -54,6 +54,7 @@ class PPOConfig:
     flatten_obs: bool = True
     multi_agent_mode: str = "independent"
     opponent_policy: str = "random"
+    device: str = "auto"
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "PPOConfig":

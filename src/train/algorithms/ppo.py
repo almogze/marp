@@ -16,6 +16,7 @@ class PPOAlgorithm(Algorithm):
         self._env = env
 
     def train(self, env, logger, config, video_recorder=None) -> None:
+        import torch
         from gymnasium.wrappers import RecordEpisodeStatistics
         from stable_baselines3 import PPO
         from stable_baselines3.common.callbacks import BaseCallback
@@ -83,6 +84,9 @@ class PPOAlgorithm(Algorithm):
             agent_ids = [agent_ids[0]]
 
         for agent_id in agent_ids:
+            device = self.config.device
+            if device == "auto":
+                device = "cuda" if torch.cuda.is_available() else "cpu"
             wrapped_env = SingleAgentGymWrapper(
                 env,
                 max_steps=max_steps,
@@ -105,6 +109,7 @@ class PPOAlgorithm(Algorithm):
                 ent_coef=self.config.ent_coef,
                 vf_coef=self.config.vf_coef,
                 policy_kwargs=policy_kwargs or None,
+                device=device,
                 verbose=0,
             )
 
