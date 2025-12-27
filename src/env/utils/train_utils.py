@@ -8,7 +8,7 @@ from multiprocessing import Process, Pool
 
 import numpy as np
 from tqdm import tqdm
-import tensorflow as tf
+from torch.utils.tensorboard import SummaryWriter
 
 # Local application imports
 from env.commons_env import HarvestCommonsEnv, DEFAULT_COLORMAP, MAP
@@ -44,7 +44,7 @@ def train_agents(n_agents=4, map_type="small", logs_path="logs", n_episodes=EPIS
     os.makedirs(logdir, exist_ok=True)
     # sys.stdout = open(os.path.join(logdir, "console_output.out"), "w+")
 
-    social_metrics_writer = tf.summary.create_file_writer(logdir + "/social_metrics")
+    social_metrics_writer = SummaryWriter(logdir + "/social_metrics")
 
     env = HarvestCommonsEnv(ascii_map=MAP[map_type], num_agents=n_agents, render=True,
                             agent_view_range=AGENT_VIEW_RANGE)
@@ -85,7 +85,9 @@ def train_agents(n_agents=4, map_type="small", logs_path="logs", n_episodes=EPIS
             actions = {}
             for agent_id, agent in env.agents.items():
                 # Follow e greedy policy using Q(s,a) function approximator
-                best_action, q_values = ddqn_models[agent_id].model.action_value(tf.expand_dims(obs[agent_id], axis=0))
+                best_action, q_values = ddqn_models[agent_id].model.action_value(
+                    np.expand_dims(obs[agent_id], axis=0)
+                )
                 actions[agent_id] = ddqn_models[agent_id].get_action(best_action)
             # Apply agents actions on the environment
             next_obs, rewards, dones, info = env.step(actions)
@@ -121,14 +123,12 @@ def train_agents(n_agents=4, map_type="small", logs_path="logs", n_episodes=EPIS
         # Log metrics to tensorboard
         social_metrics = env.get_social_metrics(episode_steps=n_steps)
         efficiency, equality, sustainability, peace = social_metrics
-        with social_metrics_writer.as_default():
-            tf.summary.scalar('efficiency', data=efficiency, step=episode)
-            tf.summary.scalar('equality', data=equality, step=episode)
-            tf.summary.scalar('sustainability', data=sustainability, step=episode)
-            tf.summary.scalar('peace', data=peace, step=episode)
-            # Log agent accumulated reward distribution
-            agent_rewards = [np.sum(rewards) for rewards in env.rewards_record.values()]
-            tf.summary.histogram('accumulated_reward', agent_rewards, step=episode)
+        social_metrics_writer.add_scalar('efficiency', efficiency, episode)
+        social_metrics_writer.add_scalar('equality', equality, episode)
+        social_metrics_writer.add_scalar('sustainability', sustainability, episode)
+        social_metrics_writer.add_scalar('peace', peace, episode)
+        agent_rewards = [np.sum(rewards) for rewards in env.rewards_record.values()]
+        social_metrics_writer.add_histogram('accumulated_reward', agent_rewards, episode)
 
         # Make video of episode
         if episode % EPISODE_RECORD_FREQ == 0:
@@ -143,6 +143,7 @@ def train_agents(n_agents=4, map_type="small", logs_path="logs", n_episodes=EPIS
                 ddqn_models[agent_id].save_policy(path=models_path + "/%s" % agent_id)
 
         print("- A:%d Episode %d - DONE in: %.3f min" % (n_agents, episode, (time.time() - start_t)/60))
+    social_metrics_writer.close()
 
 
 def gen_episode_video(models_path, map_type, n_agents, video_path):
@@ -177,7 +178,9 @@ def gen_episode_video(models_path, map_type, n_agents, video_path):
         actions = {}
         for agent_id, agent in env.agents.items():
             # Follow policy using Q(s,a) function approximator
-            best_action, q_values = ddqn_models[agent_id].model.action_value(tf.expand_dims(obs[agent_id], axis=0))
+            best_action, q_values = ddqn_models[agent_id].model.action_value(
+                np.expand_dims(obs[agent_id], axis=0)
+            )
             actions[agent_id] = ddqn_models[agent_id].get_action(best_action)
 
         # Apply agents actions on the environment

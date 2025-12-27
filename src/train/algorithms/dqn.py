@@ -3,7 +3,8 @@ from collections import deque
 from typing import Any, Dict, Tuple, List
 
 import numpy as np
-import tensorflow as tf
+import torch
+from torch import nn
 
 from .base import Algorithm
 
@@ -52,27 +53,25 @@ class DQNAgent:
         self.replay = ReplayBuffer(replay_buffer_size)
         self.train_steps = 0
 
-        self.loss_fn = tf.keras.losses.Huber()
-        self.model = self._build_model(learning_rate)
-        self.target_model = self._build_model(learning_rate)
-        self.target_model.set_weights(self.model.get_weights())
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = self._build_model(learning_rate).to(self.device)
+        self.target_model = self._build_model(learning_rate).to(self.device)
+        self.target_model.load_state_dict(self.model.state_dict())
+        self.target_model.eval()
 
-    def _build_model(self, learning_rate: float) -> tf.keras.Model:
-        inputs = tf.keras.Input(shape=self.obs_shape)
-        x = tf.keras.layers.Conv2D(32, 3, activation="relu")(inputs)
-        x = tf.keras.layers.Conv2D(64, 3, activation="relu")(x)
-        x = tf.keras.layers.Flatten()(x)
-        x = tf.keras.layers.Dense(128, activation="relu")(x)
-        outputs = tf.keras.layers.Dense(self.num_actions)(x)
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), loss=self.loss_fn)
+    def _build_model(self, learning_rate: float) -> nn.Module:
+        model = DQNNetwork(self.obs_shape, self.num_actions)
+        model.optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        model.loss_fn = nn.HuberLoss()
         return model
 
     def act(self, obs: np.ndarray, training: bool = True) -> int:
         if training and random.random() < self.epsilon:
             return random.randrange(self.num_actions)
-        q_values = self.model(np.expand_dims(obs, axis=0), training=False)
-        return int(tf.argmax(q_values[0]).numpy())
+        obs_tensor = torch.from_numpy(np.expand_dims(obs, axis=0)).float().to(self.device)
+        with torch.no_grad():
+            q_values = self.model(obs_tensor)
+        return int(torch.argmax(q_values[0]).item())
 
     def remember(self, obs, action, reward, next_obs, done) -> None:
         self.replay.add((obs, action, reward, next_obs, done))
@@ -91,25 +90,30 @@ class DQNAgent:
         next_obs_batch = np.stack([b[3] for b in batch], axis=0)
         done_batch = np.array([b[4] for b in batch], dtype=np.float32)
 
-        next_q = self.target_model(next_obs_batch, training=False)
-        max_next_q = tf.reduce_max(next_q, axis=1).numpy()
-        target_q = reward_batch + (1.0 - done_batch) * self.gamma * max_next_q
+        obs_tensor = torch.from_numpy(obs_batch).float().to(self.device)
+        next_obs_tensor = torch.from_numpy(next_obs_batch).float().to(self.device)
+        action_tensor = torch.from_numpy(action_batch).long().to(self.device)
+        reward_tensor = torch.from_numpy(reward_batch).float().to(self.device)
+        done_tensor = torch.from_numpy(done_batch).float().to(self.device)
 
-        with tf.GradientTape() as tape:
-            q_values = self.model(obs_batch, training=True)
-            action_q = tf.reduce_sum(
-                q_values * tf.one_hot(action_batch, self.num_actions), axis=1
-            )
-            loss = self.loss_fn(target_q, action_q)
+        with torch.no_grad():
+            next_q = self.target_model(next_obs_tensor)
+            max_next_q = next_q.max(dim=1).values
+            target_q = reward_tensor + (1.0 - done_tensor) * self.gamma * max_next_q
 
-        grads = tape.gradient(loss, self.model.trainable_variables)
-        self.model.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+        q_values = self.model(obs_tensor)
+        action_q = q_values.gather(1, action_tensor.unsqueeze(1)).squeeze(1)
+        loss = self.model.loss_fn(action_q, target_q)
+
+        self.model.optimizer.zero_grad()
+        loss.backward()
+        self.model.optimizer.step()
 
         if self.train_steps > 0 and self.train_steps % self.target_update_freq == 0:
-            self.target_model.set_weights(self.model.get_weights())
+            self.target_model.load_state_dict(self.model.state_dict())
 
         self.train_steps += 1
-        return {"loss": float(loss.numpy())}
+        return {"loss": float(loss.item())}
 
     def decay_epsilon(self) -> None:
         self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
@@ -187,3 +191,32 @@ class DQNAlgorithm(Algorithm):
             return 0.0
         eps = [agent.epsilon for agent in self.agents.values()]
         return float(np.mean(eps))
+
+
+class DQNNetwork(nn.Module):
+    def __init__(self, obs_shape: Tuple[int, int, int], num_actions: int) -> None:
+        super().__init__()
+        height, width, channels = obs_shape
+        self.conv = nn.Sequential(
+            nn.Conv2d(channels, 32, kernel_size=3),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3),
+            nn.ReLU(),
+        )
+        with torch.no_grad():
+            dummy = torch.zeros(1, channels, height, width)
+            conv_out = self.conv(dummy)
+            conv_out_size = int(np.prod(conv_out.shape[1:]))
+        self.head = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(conv_out_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, num_actions),
+        )
+
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
+        if obs.ndim != 4:
+            raise ValueError(f"Expected obs with shape (B,H,W,C), got {obs.shape}")
+        x = obs.permute(0, 3, 1, 2)
+        x = self.conv(x)
+        return self.head(x)
