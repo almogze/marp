@@ -11,92 +11,61 @@ Key pieces:
 - `src/env/commons_agent.py`: Agent behavior and action space.
 - `src/env/maps.py`: ASCII map layouts used for spawning walls/apples/agents.
 
-## Requirements
+## Training (configurable trainer)
 
-Python packages:
-- `gymnasium`
-- `pettingzoo`
-- `opencv-python`
-- `matplotlib`
-- `tqdm`
+The training entrypoint is `main.py`. Uncomment one of the template lines or use the
+inline script below.
 
-## How to run a quick step
+Template (edit `main.py`):
 
-From the repo root:
+```bash
+python main.py
+```
+
+Inline run (example: `configs/train_dqn.json`):
 
 ```bash
 python - << 'PY'
 import sys
 sys.path.append('src')
-from env.commons_env import HarvestCommonsEnv, MAP
+from train import Trainer, load_config
 
-env = HarvestCommonsEnv(ascii_map=MAP['small'], num_agents=1, render=False)
-obs, infos = env.reset()
-actions = {agent_id: env.action_space.sample() for agent_id in env.agents}
-next_obs, rewards, dones, infos = env.step(actions)
-print('actions:', actions)
-print('rewards:', rewards)
-print('dones:', dones)
+config = load_config('configs/train_dqn.json')
+trainer = Trainer(config)
+trainer.train()
+print('done')
 PY
 ```
 
-## Render frames to `output/`
+Logs are written to `logs/<run-name>/metrics.jsonl` and `logs/<run-name>/config.json`.
+Videos are written to `logs/<run-name>/videos/episode=XXXX.mp4`.
 
-This saves a frame before and after one step.
+Config tips:
+- `logging.video_every_n_episodes` defaults to 100; reduce it to record more frequently.
+- `logging.video_max_steps` caps episode length in videos.
+- `logging.video_enabled=false` disables video capture for faster training.
 
-```bash
-python - << 'PY'
-import os
-import sys
-sys.path.append('src')
-from env.commons_env import HarvestCommonsEnv, MAP
+Switch algorithms by changing `algorithm.name` in the config. Supported values:
+`dqn`, `random`, `ppo` (SB3).
 
-out_dir = 'output'
-os.makedirs(out_dir, exist_ok=True)
+PPO requires `stable-baselines3` and `gymnasium` installed.
+For multiple agents, PPO trains independent policies sequentially against random opponents.
 
-env = HarvestCommonsEnv(ascii_map=MAP['small'], num_agents=1, render=True)
-env.reset()
-env.render(os.path.join(out_dir, 'map_step_0.png'), mod='human')
+## Running PPO with multiple agents
 
-actions = {agent_id: env.action_space.sample() for agent_id in env.agents}
-env.step(actions)
-env.render(os.path.join(out_dir, 'map_step_1.png'), mod='human')
-print('saved:', os.path.join(out_dir, 'map_step_0.png'))
-print('saved:', os.path.join(out_dir, 'map_step_1.png'))
-PY
-```
+Set `env.num_agents` and keep `algorithm.ppo.multi_agent_mode` as `independent`. Each
+agent is trained sequentially against random opponents:
 
-## Random run + video (15 steps)
-
-This renders 16 frames (t=0000..0015) and builds a video:
-
-```bash
-python - << 'PY'
-import os
-import sys
-sys.path.append('src')
-from env.commons_env import HarvestCommonsEnv, MAP
-from env.utils import utility_funcs
-
-out_dir = os.path.join('output', 'run_15_steps')
-img_dir = os.path.join(out_dir, 'imgs')
-os.makedirs(img_dir, exist_ok=True)
-
-env = HarvestCommonsEnv(ascii_map=MAP['small'], num_agents=1, render=True)
-env.reset()
-env.render(os.path.join(img_dir, 't=0000.png'), mod='human')
-
-for t in range(1, 16):
-    actions = {agent_id: env.action_space.sample() for agent_id in env.agents}
-    env.step(actions)
-    env.render(os.path.join(img_dir, f't={t:04d}.png'), mod='human')
-
-utility_funcs.make_video_from_image_dir(
-    vid_path=out_dir,
-    img_folder=img_dir,
-    video_name='run_15_steps',
-    fps=5,
-)
-print('video:', os.path.join(out_dir, 'run_15_steps.mp4'))
-PY
+```json
+{
+  "env": {"num_agents": 5},
+  "algorithm": {
+    "name": "ppo",
+    "ppo": {
+      "multi_agent_mode": "independent",
+      "opponent_policy": "random",
+      "per_agent_timesteps": 100000
+    }
+  }
+}
 ```

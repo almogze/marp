@@ -1,0 +1,40 @@
+{
+  "episodes": 2,
+  "steps_per_episode": 600,
+  "seed": 0,
+  "env": {
+    "map_type": "small",
+    "num_agents": 5,
+    "agent_view_range": 5,
+    "ep_length": 600,
+    "render": false,
+    "spawn_speed": "slow",
+    "metric": "Efficiency"
+  },
+  "algorithm": {
+    "name": "dqn",
+    "dqn": {
+      "learning_rate": 0.001,
+      "gamma": 0.99,
+      "epsilon_start": 1.0,
+      "epsilon_end": 0.1,
+      "epsilon_decay": 0.995,
+      "batch_size": 32,
+      "replay_buffer_size": 5000,
+      "train_after": 100,
+      "train_every": 1,
+      "target_update_freq": 200,
+      "normalize_obs": true
+    }
+  },
+  "logging": {
+    "log_dir": "logs",
+    "run_name": null,
+    "log_interval": 1,
+    "video_enabled": true,
+    "video_every_n_episodes": 100,
+    "video_max_steps": 600,
+    "video_fps": 10,
+    "video_keep_frames": false
+  }
+}

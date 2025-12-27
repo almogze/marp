@@ -1,0 +1,44 @@
+{
+  "episodes": 1,
+  "steps_per_episode": 600,
+  "seed": 0,
+  "env": {
+    "map_type": "small",
+    "num_agents": 1,
+    "agent_view_range": 5,
+    "ep_length": 600,
+    "render": false,
+    "spawn_speed": "slow",
+    "metric": "Efficiency"
+  },
+  "algorithm": {
+    "name": "ppo",
+    "ppo": {
+      "policy": "MlpPolicy",
+      "total_timesteps": 100000,
+      "per_agent_timesteps": 100000,
+      "learning_rate": 0.0003,
+      "gamma": 0.99,
+      "n_steps": 1024,
+      "batch_size": 256,
+      "gae_lambda": 0.95,
+      "clip_range": 0.2,
+      "ent_coef": 0.0,
+      "vf_coef": 0.5,
+      "policy_kwargs": {},
+      "flatten_obs": true,
+      "multi_agent_mode": "independent",
+      "opponent_policy": "random"
+    }
+  },
+  "logging": {
+    "log_dir": "logs",
+    "run_name": null,
+    "log_interval": 1,
+    "video_enabled": true,
+    "video_every_n_episodes": 100,
+    "video_max_steps": 600,
+    "video_fps": 10,
+    "video_keep_frames": false
+  }
+}
