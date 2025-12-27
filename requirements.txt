@@ -1,0 +1,7 @@
+gymnasium
+pettingzoo
+opencv-python
+matplotlib
+tqdm
+tensorflow
+stable-baselines3
