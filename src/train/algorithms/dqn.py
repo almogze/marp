@@ -39,6 +39,7 @@ class DQNAgent:
         target_update_freq: int,
         train_after: int,
         train_every: int,
+        device: str = "auto",
     ):
         self.obs_shape = obs_shape
         self.num_actions = num_actions
@@ -53,7 +54,9 @@ class DQNAgent:
         self.replay = ReplayBuffer(replay_buffer_size)
         self.train_steps = 0
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(device)
         self.model = self._build_model(learning_rate).to(self.device)
         self.target_model = self._build_model(learning_rate).to(self.device)
         self.target_model.load_state_dict(self.model.state_dict())
@@ -143,6 +146,7 @@ class DQNAlgorithm(Algorithm):
                 target_update_freq=self.config.target_update_freq,
                 train_after=self.config.train_after,
                 train_every=self.config.train_every,
+                device=self.config.device,
             )
 
     def _format_obs(self, obs: Dict[str, Any], agent_id: str) -> np.ndarray:

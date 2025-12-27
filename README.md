@@ -39,6 +39,13 @@ PY
 
 Logs are written to `logs/<run-name>/metrics.jsonl` and `logs/<run-name>/config.json`.
 Videos are written to `logs/<run-name>/videos/episode=XXXX.mp4`.
+TensorBoard logs are written to `logs/<run-name>/tensorboard/`.
+
+View TensorBoard (live during training):
+
+```bash
+tensorboard --logdir logs
+```
 
 Config tips:
 - `logging.video_every_n_episodes` defaults to 100; reduce it to record more frequently.
