@@ -1,5 +1,5 @@
 {
-  "episodes": 1,
+  "episodes": 5,
   "steps_per_episode": 600,
   "seed": 0,
   "env": {
