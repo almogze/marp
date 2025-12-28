@@ -41,5 +41,18 @@
     "video_max_steps": 600,
     "video_fps": 10,
     "video_keep_frames": false
+  },
+  "reward_model": {
+    "enabled": false,
+    "mode": "narrow_view",
+    "phi": "efficiency_x_peace",
+    "lr": 0.0001,
+    "batch_pairs": 64,
+    "train_steps_per_update": 50,
+    "update_every_env_steps": 1000,
+    "warmup_episodes": 50,
+    "max_episodes_in_buffer": 5000,
+    "device": "auto",
+    "save_every_episodes": 200
   }
 }

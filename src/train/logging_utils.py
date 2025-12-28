@@ -36,6 +36,14 @@ class ResultLogger:
             scalar_pairs.append(("train/reward_sum", float(payload["reward_sum"])))
         if "reward_mean" in payload:
             scalar_pairs.append(("train/reward_mean", float(payload["reward_mean"])))
+        if "reward_pred_sum" in payload:
+            scalar_pairs.append(("train/reward_pred_sum", float(payload["reward_pred_sum"])))
+        if "reward_pred_mean" in payload:
+            scalar_pairs.append(("train/reward_pred_mean", float(payload["reward_pred_mean"])))
+        if "reward_env_sum" in payload:
+            scalar_pairs.append(("train/reward_env_sum", float(payload["reward_env_sum"])))
+        if "reward_env_mean" in payload:
+            scalar_pairs.append(("train/reward_env_mean", float(payload["reward_env_mean"])))
         for tag, value in scalar_pairs:
             self._writer.add_scalar(tag, value, step)
 
@@ -43,6 +51,14 @@ class ResultLogger:
         if isinstance(reward_per_agent, dict):
             for agent_id, reward in reward_per_agent.items():
                 self._writer.add_scalar(f"reward/agent_{agent_id}", float(reward), step)
+        pred_reward_per_agent = payload.get("reward_pred_per_agent")
+        if isinstance(pred_reward_per_agent, dict):
+            for agent_id, reward in pred_reward_per_agent.items():
+                self._writer.add_scalar(f"reward_pred/agent_{agent_id}", float(reward), step)
+        env_reward_per_agent = payload.get("reward_env_per_agent")
+        if isinstance(env_reward_per_agent, dict):
+            for agent_id, reward in env_reward_per_agent.items():
+                self._writer.add_scalar(f"reward_env/agent_{agent_id}", float(reward), step)
 
         social_metrics = payload.get("social_metrics")
         if isinstance(social_metrics, (list, tuple)) and len(social_metrics) == 4:
@@ -60,6 +76,11 @@ class ResultLogger:
                 self._writer.add_scalar("train/loss", float(algo_metrics["avg_loss"]), step)
             if "loss" in algo_metrics and isinstance(algo_metrics["loss"], (int, float)):
                 self._writer.add_scalar("train/loss", float(algo_metrics["loss"]), step)
+            reward_model_metrics = algo_metrics.get("reward_model")
+            if isinstance(reward_model_metrics, dict):
+                for name, value in reward_model_metrics.items():
+                    if isinstance(value, (int, float)):
+                        self._writer.add_scalar(f"reward_model/{name}", float(value), step)
             for name, value in algo_metrics.items():
                 if isinstance(value, (int, float)):
                     self._writer.add_scalar(f"algo/{name}", float(value), step)

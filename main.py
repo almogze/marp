@@ -11,6 +11,7 @@ def run_training(config_path: str) -> None:
 
 if __name__ == "__main__":
     sys.path.append("src")
-    # Template runs (uncomment one)
+    # Template runs (uncomment one). Toggle reward modeling via the
+    # reward_model section in the config.
     run_training("configs/train_dqn.json")
     # run_training("configs/train_ppo.json")

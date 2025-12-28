@@ -10,6 +10,7 @@ Key pieces:
 - `src/env/map_env.py`: Core map simulation, movement, and rendering.
 - `src/env/commons_agent.py`: Agent behavior and action space.
 - `src/env/maps.py`: ASCII map layouts used for spawning walls/apples/agents.
+- `src/reward_model/`: MARP-style preference-based reward model and training utilities.
 
 ## Training (configurable trainer)
 
@@ -57,6 +58,49 @@ Switch algorithms by changing `algorithm.name` in the config. Supported values:
 
 PPO requires `stable-baselines3` and `gymnasium` installed.
 For multiple agents, PPO trains independent policies sequentially against random opponents.
+
+## Preference-based reward modeling (MARP)
+
+The trainer supports learning a reward model `r_hat(o, a)` from preferences derived
+from social metrics (e.g., efficiency, peace). When enabled, the trainer uses the
+learned reward instead of the environment reward for training, while still logging
+environment rewards for analysis.
+
+Key mechanics:
+- `compute_social_metrics()` and `get_social_metrics()` provide metrics per episode.
+- Preference pairs are generated from episode metrics (e.g., efficiency x peace).
+- Reward model is trained via Bradley-Terry on trajectory pairs.
+- DQN uses the external loop and swaps `rewards` with `r_hat` in `Trainer.train()`.
+- PPO uses a Gym wrapper that overrides the reward returned by `step()`.
+
+Enable in config:
+
+```json
+{
+  "reward_model": {
+    "enabled": true,
+    "mode": "narrow_view",
+    "phi": "efficiency_x_peace",
+    "lr": 0.0001,
+    "batch_pairs": 64,
+    "train_steps_per_update": 50,
+    "update_every_env_steps": 1000,
+    "warmup_episodes": 50,
+    "max_episodes_in_buffer": 5000,
+    "device": "auto",
+    "save_every_episodes": 200
+  }
+}
+```
+
+Logging:
+- `reward_pred_*` tracks predicted rewards when RM is enabled.
+- `reward_env_*` tracks environment rewards (PPO wrapper).
+- `reward_model/*` in TensorBoard shows RM loss/accuracy/correlation.
+
+Checkpoints:
+- DQN: `logs/<run>/model_last.pt`, `logs/<run>/reward_model_last.pt`
+- PPO: `logs/<run>/ppo_model_<agent_id>_last.zip`, `logs/<run>/reward_model_<agent_id>_last.pt`
 
 ## Running PPO with multiple agents
 
