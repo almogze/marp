@@ -3,6 +3,9 @@ import time
 import numpy as np
 
 from src.env.commons_env import HarvestCommonsEnv, MAP
+from src.reward_model.preference_buffer import EpisodeRecord, PreferenceBuffer
+from src.reward_model.reward_model import RewardModel
+from src.reward_model.reward_trainer import RewardModelTrainer
 from .config import TrainerConfig, save_config
 from .logging_utils import ResultLogger
 from .registry import build_algorithm
@@ -55,6 +58,15 @@ class Trainer:
             keep_frames=log_cfg.video_keep_frames,
         )
 
+    def _format_reward_obs(self, obs: dict, agent_id: str) -> np.ndarray:
+        img = obs[agent_id]["curr_obs"]
+        normalize = False
+        if hasattr(self.config, "algorithm") and hasattr(self.config.algorithm, "dqn"):
+            normalize = getattr(self.config.algorithm.dqn, "normalize_obs", False)
+        if normalize:
+            return (img / 255.0).astype(np.float32)
+        return img.astype(np.float32)
+
     def train(self) -> None:
         if not self.algorithm.uses_external_loop():
             video_recorder = self._build_video_recorder()
@@ -64,26 +76,80 @@ class Trainer:
             return
 
         video_recorder = self._build_video_recorder()
+        rm_cfg = self.config.reward_model
+        reward_model = None
+        rm_trainer = None
+        pref_buffer = None
+        global_step = 0
+        last_rm_update_step = 0
+        if rm_cfg.enabled:
+            obs_shape = self.env.observation_space["curr_obs"].shape
+            num_actions = int(self.env.action_space.n)
+            reward_model = RewardModel(obs_shape=obs_shape, num_actions=num_actions)
+            rm_trainer = RewardModelTrainer(reward_model, lr=rm_cfg.lr, device=rm_cfg.device)
+            reward_model = rm_trainer.reward_model
+            pref_buffer = PreferenceBuffer(rm_cfg.max_episodes_in_buffer)
+
         for episode in range(self.config.episodes):
             obs, infos = self.env.reset(seed=self.config.seed)
             episode_rewards = {agent_id: 0.0 for agent_id in obs.keys()}
+            episode_pred_rewards = {agent_id: 0.0 for agent_id in obs.keys()} if rm_cfg.enabled else None
+            episode_agent_trajs = {agent_id: [] for agent_id in obs.keys()} if rm_cfg.enabled else None
             step_count = 0
             video_recorder.start(episode)
             for step in range(self.config.steps_per_episode):
                 actions = self.algorithm.act(obs, step)
+                step_obs_imgs = {}
+                if rm_cfg.enabled:
+                    for agent_id in obs.keys():
+                        obs_img = self._format_reward_obs(obs, agent_id)
+                        step_obs_imgs[agent_id] = obs_img
+                        episode_agent_trajs[agent_id].append((obs_img, actions[agent_id]))
                 next_obs, rewards, dones, infos = self.env.step(actions)
-                self.algorithm.observe(obs, actions, rewards, next_obs, dones, infos, step)
+                if rm_cfg.enabled:
+                    pred_rewards = {
+                        agent_id: reward_model.predict(step_obs_imgs[agent_id], actions[agent_id])
+                        for agent_id in obs.keys()
+                    }
+                    self.algorithm.observe(obs, actions, pred_rewards, next_obs, dones, infos, step)
+                    for agent_id, reward in pred_rewards.items():
+                        episode_pred_rewards[agent_id] += reward
+                else:
+                    self.algorithm.observe(obs, actions, rewards, next_obs, dones, infos, step)
                 video_recorder.record(self.env, step)
                 for agent_id, reward in rewards.items():
                     episode_rewards[agent_id] += reward
                 obs = next_obs
                 step_count = step + 1
+                global_step += 1
                 if dones.get("__all__", False):
                     break
 
             self.env.compute_social_metrics()
             metrics = self.env.get_social_metrics()
+            if rm_cfg.enabled:
+                pref_buffer.add_episode(EpisodeRecord(agent_trajs=episode_agent_trajs, metrics=metrics))
+            rm_metrics = {}
+            if rm_cfg.enabled and (episode + 1) >= rm_cfg.warmup_episodes:
+                if (global_step - last_rm_update_step) >= rm_cfg.update_every_env_steps:
+                    rm_metrics = rm_trainer.train(
+                        pref_buffer,
+                        phi_key=rm_cfg.phi,
+                        mode=rm_cfg.mode,
+                        batch_pairs=rm_cfg.batch_pairs,
+                        train_steps=rm_cfg.train_steps_per_update,
+                    )
+                    last_rm_update_step = global_step
+            if rm_cfg.enabled and (episode + 1) % rm_cfg.save_every_episodes == 0:
+                reward_model_path = os.path.join(self.logger.run_dir, "reward_model.pt")
+                reward_model.save(reward_model_path)
+
             algo_metrics = self.algorithm.on_episode_end(episode)
+            if algo_metrics is None:
+                algo_metrics = {}
+            if rm_metrics:
+                algo_metrics = dict(algo_metrics)
+                algo_metrics["reward_model"] = rm_metrics
             payload = {
                 "episode": episode,
                 "steps": step_count,
@@ -93,9 +159,20 @@ class Trainer:
                 "social_metrics": metrics,
                 "algo_metrics": algo_metrics,
             }
+            if rm_cfg.enabled and episode_pred_rewards is not None:
+                payload["reward_pred_sum"] = float(np.sum(list(episode_pred_rewards.values())))
+                payload["reward_pred_mean"] = float(np.mean(list(episode_pred_rewards.values())))
+                payload["reward_pred_per_agent"] = episode_pred_rewards
             if episode % self.config.logging.log_interval == 0:
                 self.logger.log_episode(payload)
             video_recorder.finish()
+
+        if hasattr(self.algorithm, "save"):
+            model_path = os.path.join(self.logger.run_dir, "model_last.pt")
+            self.algorithm.save(model_path)
+        if rm_cfg.enabled and reward_model is not None:
+            reward_model_path = os.path.join(self.logger.run_dir, "reward_model_last.pt")
+            reward_model.save(reward_model_path)
 
         video_recorder.finalize()
         self.logger.close()

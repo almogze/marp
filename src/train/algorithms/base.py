@@ -36,3 +36,6 @@ class Algorithm(ABC):
 
     def train(self, env, logger, config) -> None:
         raise NotImplementedError
+
+    def save(self, path: str) -> None:
+        return None

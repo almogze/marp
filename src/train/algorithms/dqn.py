@@ -1,3 +1,4 @@
+import os
 import random
 from collections import deque
 from typing import Any, Dict, Tuple, List
@@ -189,6 +190,19 @@ class DQNAlgorithm(Algorithm):
             avg_loss = float(np.mean(list(self.last_losses.values())))
         self.last_losses = {}
         return {"avg_loss": avg_loss, "epsilon": self._mean_epsilon()}
+
+    def save(self, path: str) -> None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        payload = {"agents": {}, "config": self.config.__dict__}
+        for agent_id, agent in self.agents.items():
+            payload["agents"][agent_id] = {
+                "model_state": agent.model.state_dict(),
+                "target_model_state": agent.target_model.state_dict(),
+                "epsilon": agent.epsilon,
+                "obs_shape": agent.obs_shape,
+                "num_actions": agent.num_actions,
+            }
+        torch.save(payload, path)
 
     def _mean_epsilon(self) -> float:
         if not self.agents:

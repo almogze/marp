@@ -96,6 +96,25 @@ class LoggingConfig:
 
 
 @dataclass
+class RewardModelConfig:
+    enabled: bool = False
+    mode: str = "narrow_view"
+    phi: str = "efficiency_x_peace"
+    lr: float = 1e-4
+    batch_pairs: int = 64
+    train_steps_per_update: int = 50
+    update_every_env_steps: int = 1000
+    warmup_episodes: int = 50
+    max_episodes_in_buffer: int = 5000
+    device: str = "auto"
+    save_every_episodes: int = 200
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "RewardModelConfig":
+        return RewardModelConfig(**data)
+
+
+@dataclass
 class TrainerConfig:
     episodes: int = 100
     steps_per_episode: int = 600
@@ -103,6 +122,7 @@ class TrainerConfig:
     env: EnvConfig = field(default_factory=EnvConfig)
     algorithm: AlgorithmConfig = field(default_factory=AlgorithmConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    reward_model: RewardModelConfig = field(default_factory=RewardModelConfig)
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "TrainerConfig":
@@ -113,6 +133,7 @@ class TrainerConfig:
             env=EnvConfig.from_dict(data.get("env", {})),
             algorithm=AlgorithmConfig.from_dict(data.get("algorithm", {})),
             logging=LoggingConfig.from_dict(data.get("logging", {})),
+            reward_model=RewardModelConfig.from_dict(data.get("reward_model", {})),
         )
 
 
@@ -134,6 +155,7 @@ def save_config(path: str, config: TrainerConfig) -> None:
             "ppo": config.algorithm.ppo.__dict__,
         },
         "logging": config.logging.__dict__,
+        "reward_model": config.reward_model.__dict__,
     }
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
