@@ -36,10 +36,13 @@ class Trainer:
     def _build_logger(self) -> ResultLogger:
         log_cfg = self.config.logging
         algo = self.config.algorithm.name
+        rm_cfg = self.config.reward_model
         run_name = log_cfg.run_name
         if not run_name:
             timestamp = time.strftime("%Y%m%d-%H%M%S")
             run_name = f"{timestamp}-{algo}-map={self.config.env.map_type}-agents={self.config.env.num_agents}"
+        rm_suffix = f"rm={rm_cfg.mode}" if rm_cfg.enabled else "rm=off"
+        run_name = f"{run_name}-{rm_suffix}"
         logger = ResultLogger(log_cfg.log_dir, run_name)
         config_path = os.path.join(logger.run_dir, "config.json")
         save_config(config_path, self.config)

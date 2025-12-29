@@ -38,9 +38,10 @@ print('done')
 PY
 ```
 
-Logs are written to `logs/<run-name>/metrics.jsonl` and `logs/<run-name>/config.json`.
+Logs are written to `logs/<run-name>/metrics.json` and `logs/<run-name>/config.json`.
 Videos are written to `logs/<run-name>/videos/episode=XXXX.mp4`.
 TensorBoard logs are written to `logs/<run-name>/tensorboard/`.
+Run folders include a reward-model suffix, e.g. `...-rm=off` or `...-rm=narrow_view`.
 
 View TensorBoard (live during training):
 
@@ -101,6 +102,22 @@ Logging:
 Checkpoints:
 - DQN: `logs/<run>/model_last.pt`, `logs/<run>/reward_model_last.pt`
 - PPO: `logs/<run>/ppo_model_<agent_id>_last.zip`, `logs/<run>/reward_model_<agent_id>_last.pt`
+
+## Plotting run metrics
+
+Generate reward and social-metric plots from a run folder (expects `metrics.json`):
+
+```bash
+python scripts/plot_run_metrics.py logs/<run-name>
+```
+
+Outputs:
+- `logs/<run-name>/plots/rewards.png`
+- `logs/<run-name>/plots/social_metrics.png`
+
+Options:
+- `--smooth N`: moving average window (episodes); also adds a faded ±1 std band.
+- `--normalize`: normalize each series to [0, 1] and plot social metrics on one graph.
 
 ## Running PPO with multiple agents
 
