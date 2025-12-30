@@ -15,3 +15,4 @@ if __name__ == "__main__":
     # reward_model section in the config.
     run_training("configs/train_dqn.json")
     # run_training("configs/train_ppo.json")
+    # run_training("configs/train_mappo.json")

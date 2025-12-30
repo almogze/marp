@@ -63,19 +63,44 @@ class PPOConfig:
 
 
 @dataclass
+class MAPPOConfig:
+    learning_rate: float = 3e-4
+    gamma: float = 0.99
+    gae_lambda: float = 0.95
+    clip_range: float = 0.2
+    ent_coef: float = 0.01
+    vf_coef: float = 0.5
+    n_steps: int = 1024
+    batch_size: int = 256
+    update_epochs: int = 4
+    hidden_size: int = 256
+    max_grad_norm: float = 0.5
+    normalize_obs: bool = False
+    flatten_obs: bool = False
+    device: str = "auto"
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "MAPPOConfig":
+        return MAPPOConfig(**data)
+
+
+@dataclass
 class AlgorithmConfig:
     name: str = "dqn"
     dqn: DQNConfig = field(default_factory=DQNConfig)
     ppo: PPOConfig = field(default_factory=PPOConfig)
+    mappo: MAPPOConfig = field(default_factory=MAPPOConfig)
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "AlgorithmConfig":
         dqn = DQNConfig.from_dict(data.get("dqn", {}))
         ppo = PPOConfig.from_dict(data.get("ppo", {}))
+        mappo = MAPPOConfig.from_dict(data.get("mappo", {}))
         return AlgorithmConfig(
             name=data.get("name", "dqn"),
             dqn=dqn,
             ppo=ppo,
+            mappo=mappo,
         )
 
 
@@ -153,6 +178,7 @@ def save_config(path: str, config: TrainerConfig) -> None:
             "name": config.algorithm.name,
             "dqn": config.algorithm.dqn.__dict__,
             "ppo": config.algorithm.ppo.__dict__,
+            "mappo": config.algorithm.mappo.__dict__,
         },
         "logging": config.logging.__dict__,
         "reward_model": config.reward_model.__dict__,
