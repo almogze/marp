@@ -53,12 +53,38 @@ Config tips:
 - `logging.video_every_n_episodes` defaults to 100; reduce it to record more frequently.
 - `logging.video_max_steps` caps episode length in videos.
 - `logging.video_enabled=false` disables video capture for faster training.
+- Example configs: `configs/train_dqn.json`, `configs/train_ppo.json`, `configs/train_mappo.json`.
+
+## Run the environment script
+
+Use `scripts/run_env.py` to launch training with CLI overrides:
+
+```bash
+python scripts/run_env.py --algo mappo --episodes 200 --reward-model --mode narrow_view --phi efficiency_x_peace
+```
+
+Windows example:
+
+```bash
+python scripts\run_env.py --algo mappo --episodes 200 --agents 5 --seed 0 --reward-model --mode narrow_view --phi efficiency_x_peace
+```
+
+Arguments:
+- `--algo {dqn,ppo,mappo,random}` selects the algorithm (default: dqn).
+- `--episodes N` sets the number of training episodes.
+- `--seed N` sets the random seed.
+- `--map NAME` sets `env.map_type`.
+- `--agents N` sets `env.num_agents`.
+- `--reward-model` / `--no-reward-model` toggles reward modeling.
+- `--mode MODE` sets `reward_model.mode`.
+- `--phi PHI` sets `reward_model.phi`.
 
 Switch algorithms by changing `algorithm.name` in the config. Supported values:
-`dqn`, `random`, `ppo` (SB3).
+`dqn`, `random`, `ppo` (SB3), `mappo` (native).
 
 PPO requires `stable-baselines3` and `gymnasium` installed.
 For multiple agents, PPO trains independent policies sequentially against random opponents.
+MAPPO uses the native trainer loop with a shared actor and centralized critic.
 
 ## Preference-based reward modeling (MARP)
 
@@ -133,6 +159,27 @@ agent is trained sequentially against random opponents:
       "multi_agent_mode": "independent",
       "opponent_policy": "random",
       "per_agent_timesteps": 100000
+    }
+  }
+}
+```
+
+## Running MAPPO
+
+MAPPO uses a shared actor and centralized critic over concatenated observations.
+Enable it by switching the algorithm name and configuring the `mappo` block:
+
+```json
+{
+  "env": {"num_agents": 5},
+  "algorithm": {
+    "name": "mappo",
+    "mappo": {
+      "n_steps": 1024,
+      "batch_size": 256,
+      "update_epochs": 4,
+      "flatten_obs": false,
+      "normalize_obs": true
     }
   }
 }
