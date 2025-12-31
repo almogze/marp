@@ -13,6 +13,7 @@ class VideoRecorder:
         max_steps: int,
         fps: int,
         keep_frames: bool,
+        total_episodes: Optional[int] = None,
     ):
         self.base_dir = base_dir
         self.enabled = enabled
@@ -20,11 +21,18 @@ class VideoRecorder:
         self.max_steps = max_steps
         self.fps = fps
         self.keep_frames = keep_frames
+        self.total_episodes = total_episodes
         self._current_episode: Optional[int] = None
         self._frame_dir: Optional[str] = None
 
     def should_record(self, episode: int) -> bool:
-        return self.enabled and (episode % self.every_n_episodes == 0)
+        if not self.enabled:
+            return False
+        # Always record if it's the last episode
+        if self.total_episodes is not None and episode == self.total_episodes - 1:
+            return True
+        # Otherwise record based on every_n_episodes
+        return episode % self.every_n_episodes == 0
 
     def start(self, episode: int) -> None:
         if not self.should_record(episode):

@@ -53,6 +53,7 @@ Config tips:
 - `logging.video_every_n_episodes` defaults to 100; reduce it to record more frequently.
 - `logging.video_max_steps` caps episode length in videos.
 - `logging.video_enabled=false` disables video capture for faster training.
+- The last episode is always recorded (if video is enabled), regardless of `video_every_n_episodes`.
 - Example configs: `configs/train_dqn.json`, `configs/train_ppo.json`, `configs/train_mappo.json`.
 
 ## Run the environment script
@@ -69,10 +70,17 @@ Windows example:
 python scripts\run_env.py --algo mappo --episodes 200 --agents 5 --seed 0 --reward-model --mode narrow_view --phi efficiency_x_peace
 ```
 
+Random seed example:
+
+```bash
+python scripts/run_env.py --algo dqn --episodes 100 --random-seed
+```
+
 Arguments:
 - `--algo {dqn,ppo,mappo,random}` selects the algorithm (default: dqn).
 - `--episodes N` sets the number of training episodes.
-- `--seed N` sets the random seed.
+- `--seed N` sets the random seed (integer). Mutually exclusive with `--random-seed`.
+- `--random-seed` uses a randomly generated seed instead of the config default.
 - `--map NAME` sets `env.map_type`.
 - `--agents N` sets `env.num_agents`.
 - `--reward-model` / `--no-reward-model` toggles reward modeling.

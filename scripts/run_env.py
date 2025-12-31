@@ -23,7 +23,9 @@ def parse_args() -> argparse.Namespace:
         help="Algorithm to run.",
     )
     parser.add_argument("--episodes", type=int, help="Number of training episodes.")
-    parser.add_argument("--seed", type=int, help="Random seed.")
+    seed_group = parser.add_mutually_exclusive_group()
+    seed_group.add_argument("--seed", type=int, help="Random seed (integer).")
+    seed_group.add_argument("--random-seed", action="store_true", help="Use a random seed instead of the config default.")
     parser.add_argument("--map", dest="map_type", help="Map type (e.g., small).")
     parser.add_argument("--agents", type=int, help="Number of agents.")
     rm_group = parser.add_mutually_exclusive_group()
@@ -56,6 +58,8 @@ def main() -> None:
         config.episodes = int(args.episodes)
     if args.seed is not None:
         config.seed = int(args.seed)
+    elif args.random_seed:
+        config.seed = None  # Will be randomly generated in Trainer
     if args.map_type is not None:
         config.env.map_type = args.map_type
     if args.agents is not None:

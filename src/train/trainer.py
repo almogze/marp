@@ -1,4 +1,5 @@
 import os
+import random
 import time
 import numpy as np
 
@@ -15,10 +16,28 @@ from .video_utils import VideoRecorder
 class Trainer:
     def __init__(self, config: TrainerConfig):
         self.config = config
+        # Generate random seed if None
+        if self.config.seed is None:
+            self.config.seed = random.randint(0, 2**31 - 1)
+        # Seed all random number generators
+        self._seed_rngs(self.config.seed)
         self.env = self._build_env()
         self.algorithm = build_algorithm(config.algorithm)
         self.algorithm.on_env_ready(self.env)
         self.logger = self._build_logger()
+    
+    def _seed_rngs(self, seed: int) -> None:
+        """Seed all random number generators for reproducibility."""
+        random.seed(seed)
+        np.random.seed(seed)
+        # Try to seed torch if available
+        try:
+            import torch
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
+        except ImportError:
+            pass
 
     def _build_env(self) -> HarvestCommonsEnv:
         env_cfg = self.config.env
@@ -43,9 +62,12 @@ class Trainer:
             run_name = f"{timestamp}-{algo}-map={self.config.env.map_type}-agents={self.config.env.num_agents}"
         rm_suffix = f"rm={rm_cfg.mode}" if rm_cfg.enabled else "rm=off"
         run_name = f"{run_name}-{rm_suffix}"
+        if self.config.seed is not None:
+            run_name = f"{run_name}-seed={self.config.seed}"
         logger = ResultLogger(log_cfg.log_dir, run_name)
         config_path = os.path.join(logger.run_dir, "config.json")
         save_config(config_path, self.config)
+        print(f"Using random seed: {self.config.seed}")
         return logger
 
     def _build_video_recorder(self) -> VideoRecorder:
@@ -59,6 +81,7 @@ class Trainer:
             max_steps=log_cfg.video_max_steps,
             fps=log_cfg.video_fps,
             keep_frames=log_cfg.video_keep_frames,
+            total_episodes=self.config.episodes,
         )
 
     def _format_reward_obs(self, obs: dict, agent_id: str) -> np.ndarray:
@@ -94,7 +117,7 @@ class Trainer:
             pref_buffer = PreferenceBuffer(rm_cfg.max_episodes_in_buffer)
 
         for episode in range(self.config.episodes):
-            obs, infos = self.env.reset(seed=self.config.seed)
+            obs, infos = self.env.reset(seed=None)
             episode_rewards = {agent_id: 0.0 for agent_id in obs.keys()}
             episode_pred_rewards = {agent_id: 0.0 for agent_id in obs.keys()} if rm_cfg.enabled else None
             episode_agent_trajs = {agent_id: [] for agent_id in obs.keys()} if rm_cfg.enabled else None
