@@ -53,6 +53,7 @@ Config tips:
 - `logging.video_every_n_episodes` defaults to 100; reduce it to record more frequently.
 - `logging.video_max_steps` caps episode length in videos.
 - `logging.video_enabled=false` disables video capture for faster training.
+- The last episode is always recorded (if video is enabled), regardless of `video_every_n_episodes`.
 - Example configs: `configs/train_dqn.json`, `configs/train_ppo.json`, `configs/train_mappo.json`.
 
 ## Run the environment script
@@ -69,15 +70,78 @@ Windows example:
 python scripts\run_env.py --algo mappo --episodes 200 --agents 5 --seed 0 --reward-model --mode narrow_view --phi efficiency_x_peace
 ```
 
+Random seed example:
+
+```bash
+python scripts/run_env.py --algo dqn --episodes 100 --random-seed
+```
+
+### Running sequences of games
+
+You can run multiple games sequentially in several ways:
+
+**Multiple algorithms:**
+```bash
+python scripts/run_env.py --algo dqn ppo mappo --episodes 100
+```
+
+**Multiple maps:**
+```bash
+python scripts/run_env.py --algo dqn --map small large --episodes 100
+```
+
+**Multiple agent counts:**
+```bash
+python scripts/run_env.py --algo dqn --agents 3 5 7 --episodes 100
+```
+
+**Multiple seeds (including random):**
+```bash
+python scripts/run_env.py --algo dqn --seed 0 1 random 3 --episodes 100
+```
+This runs 4 games: seeds 0, 1, random, and 3.
+
+**All random seeds:**
+```bash
+python scripts/run_env.py --algo dqn ppo --random-seed --episodes 100
+```
+This runs 2 games, each with a different randomly generated seed.
+
+**All combinations:**
+```bash
+python scripts/run_env.py --algo dqn ppo --map small large --agents 3 5 --seed 0 1 --episodes 100
+```
+This will run all combinations: 2 algorithms × 2 maps × 2 agent counts × 2 seeds = 16 games total.
+
+**Using a sequence file:**
+Create a JSON file (e.g., `sequence.json`) with a list of game configurations:
+
+```json
+[
+  {"algo": "dqn", "episodes": 100, "map_type": "small", "agents": 3, "seed": 0},
+  {"algo": "ppo", "episodes": 200, "map_type": "large", "agents": 5, "reward_model": true, "seed": 1},
+  {"algo": "mappo", "episodes": 150, "map_type": "small", "agents": 7, "seed": null},
+  {"algo": "dqn", "episodes": 100, "map_type": "small", "agents": 3, "random_seed": true}
+]
+```
+Note: Use `"seed": null` or `"random_seed": true` in sequence files to use random seeds for that game.
+
+Then run:
+```bash
+python scripts/run_env.py --sequence-file sequence.json
+```
+
 Arguments:
-- `--algo {dqn,ppo,mappo,random}` selects the algorithm (default: dqn).
+- `--algo {dqn,ppo,mappo,random}` selects the algorithm (default: dqn). Can specify multiple values to run sequentially.
 - `--episodes N` sets the number of training episodes.
-- `--seed N` sets the random seed.
-- `--map NAME` sets `env.map_type`.
-- `--agents N` sets `env.num_agents`.
+- `--seed N` sets the random seed(s) (integer or 'random'). Can specify multiple values to run sequentially (e.g., `--seed 0 1 random 3`). Use 'random' to generate a random seed for that specific game.
+- `--random-seed` uses a randomly generated seed for all games (overrides any `--seed` values). Each game will get a different random seed.
+- `--map NAME` sets `env.map_type`. Can specify multiple values to run sequentially.
+- `--agents N` sets `env.num_agents`. Can specify multiple values to run sequentially.
 - `--reward-model` / `--no-reward-model` toggles reward modeling.
 - `--mode MODE` sets `reward_model.mode`.
 - `--phi PHI` sets `reward_model.phi`.
+- `--sequence-file PATH` path to JSON file containing a list of game configurations to run sequentially.
 
 Switch algorithms by changing `algorithm.name` in the config. Supported values:
 `dqn`, `random`, `ppo` (SB3), `mappo` (native).

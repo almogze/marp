@@ -158,12 +158,21 @@ class MapEnv(gymnasium.Env):
         This method is performed in between rollouts. It resets the state of
         the environment.
 
+        Parameters
+        ----------
+        seed: int or None
+            Random seed for reproducibility. If None, uses current RNG state.
+            If provided, seeds numpy.random and random modules.
+
         Returns
         -------
         observation: dict of numpy ndarray
             the initial observation of the space. The initial reward is assumed
             to be zero.
         """
+        if seed is not None:
+            np.random.seed(seed)
+            random.seed(seed)
         self.beam_pos = []
         self.agents = {}
         self.setup_agents()
