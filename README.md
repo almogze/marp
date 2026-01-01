@@ -209,6 +209,30 @@ Options:
 - `--smooth N`: moving average window (episodes); also adds a faded ±1 std band.
 - `--normalize`: normalize each series to [0, 1] and plot social metrics on one graph.
 
+### Plotting multiple runs (averaged)
+
+Generate averaged plots with standard deviation across multiple runs:
+
+```bash
+python scripts/plot_multiple_runs.py logs/<run1> logs/<run2> logs/<run3> ...
+```
+
+Example:
+```bash
+python scripts/plot_multiple_runs.py logs/20251231-224618-mappo-map=small-agents=5-rm=narrow_view-seed=1814091097 logs/20251231-234319-mappo-map=small-agents=5-rm=narrow_view-seed=1942310406 logs/20260101-004021-mappo-map=small-agents=5-rm=narrow_view-seed=1364072973
+```
+
+Outputs:
+- `plots_averaged/rewards_averaged.png` (or custom output directory)
+- `plots_averaged/social_metrics_averaged.png`
+
+Options:
+- `--output-dir DIR` or `-o DIR`: output directory for plots (default: `plots_averaged`).
+- `--smooth N`: moving average window (episodes); use 1 to disable smoothing.
+- `--normalize`: normalize each metric series to [0, 1] and plot social metrics on one graph.
+
+The script computes mean and standard deviation across all runs for each episode, with standard deviation shown as shaded regions around the mean.
+
 ## Running PPO with multiple agents
 
 Set `env.num_agents` and keep `algorithm.ppo.multi_agent_mode` as `independent`. Each

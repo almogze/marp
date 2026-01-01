@@ -41,7 +41,7 @@
     "video_keep_frames": false
   },
   "reward_model": {
-    "enabled": false,
+    "enabled": true,
     "mode": "narrow_view",
     "phi": "efficiency_x_peace",
     "lr": 0.0001,
