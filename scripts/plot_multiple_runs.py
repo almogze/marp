@@ -9,6 +9,49 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Publication-quality settings
+plt.rcParams.update({
+    'font.size': 11,
+    'font.family': 'serif',
+    'font.serif': ['Times New Roman', 'Times', 'DejaVu Serif'],
+    'axes.labelsize': 12,
+    'axes.titlesize': 13,
+    'xtick.labelsize': 10,
+    'ytick.labelsize': 10,
+    'legend.fontsize': 10,
+    'figure.titlesize': 14,
+    'axes.linewidth': 1.0,
+    'grid.linewidth': 0.5,
+    'lines.linewidth': 2.0,
+    'patch.linewidth': 1.0,
+    'xtick.major.width': 1.0,
+    'ytick.major.width': 1.0,
+    'xtick.minor.width': 0.5,
+    'ytick.minor.width': 0.5,
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+    'savefig.bbox': 'tight',
+    'savefig.pad_inches': 0.1,
+    'text.usetex': False,  # Use matplotlib's built-in math rendering instead of LaTeX
+    'mathtext.fontset': 'stix',  # Use STIX fonts for math symbols
+})
+
+# Colorblind-friendly color palette
+PUBLICATION_COLORS = [
+    '#1f77b4',  # blue
+    '#ff7f0e',  # orange
+    '#2ca02c',  # green
+    '#d62728',  # red
+    '#9467bd',  # purple
+    '#8c564b',  # brown
+    '#e377c2',  # pink
+    '#7f7f7f',  # gray
+    '#bcbd22',  # olive
+    '#17becf',  # cyan
+]
+
 
 REWARD_KEYS = (
     "reward_sum",
@@ -19,6 +62,23 @@ REWARD_KEYS = (
     "reward_env_mean",
 )
 SOCIAL_ORDER = ("efficiency", "equality", "sustainability", "peace")
+
+
+def _format_label(label: str) -> str:
+    """
+    Format label for display:
+    - Convert 'efficiency_x_peace' to 'efficiency $\\times$ peace' (LaTeX math)
+    - Replace underscores with spaces in other cases
+    """
+    if '_x_' in label:
+        # Replace _x_ with \times for LaTeX math notation (wrapped in $ for math mode)
+        label = label.replace('_x_', r' $\times$ ')
+        # Remove remaining underscores
+        label = label.replace('_', ' ')
+    else:
+        # Just replace underscores with spaces
+        label = label.replace('_', ' ')
+    return label
 
 
 def _load_metrics(metrics_path: str) -> List[Dict[str, Any]]:
@@ -197,9 +257,13 @@ def _plot_multiple_averaged_series(
     if not series_dict:
         return False
     
-    plt.figure(figsize=(12, 6))
+    # Use column width for single-column figures (3.5 inches) or double-column (7 inches)
+    fig, ax = plt.subplots(figsize=(6, 4))
     
-    for metric_name, (episodes, means, stds) in series_dict.items():
+    # Get color cycle
+    color_cycle = iter(PUBLICATION_COLORS)
+    
+    for idx, (metric_name, (episodes, means, stds)) in enumerate(series_dict.items()):
         if len(episodes) == 0:
             continue
         
@@ -216,43 +280,41 @@ def _plot_multiple_averaged_series(
             means = np.array(smoothed_means)
             stds = np.array(smoothed_stds)
         
-        # Plot the line (use specified color or default)
-        plot_kwargs = {"label": metric_name, "linewidth": 2}
+        # Get color for this series
         if line_color:
-            plot_kwargs["color"] = line_color
-        plt.plot(episodes, means, **plot_kwargs)
-        
-        # For reward metrics, use shaded area; for social metrics, use error bars
-        if error_bar_color == 'black':
-            # Social metrics: use error bars with black color
-            ep_thin, means_thin, stds_thin = _thin_error_bars(episodes, means, stds, error_bar_step)
-            plt.errorbar(
-                ep_thin,
-                means_thin,
-                yerr=stds_thin,
-                fmt='none',  # Don't draw line or markers, just error bars
-                color='black',
-                capsize=3,
-                capthick=1.5,
-                elinewidth=1.5,
-                alpha=0.7,
-            )
+            color = line_color
         else:
-            # Reward metrics: use shaded area
-            plt.fill_between(
-                episodes,
-                means - stds,
-                means + stds,
-                alpha=0.2,
-            )
+            color = next(color_cycle)
+        
+        # Format metric name for display
+        formatted_label = _format_label(metric_name)
+        # Plot the line
+        ax.plot(episodes, means, label=formatted_label, color=color, linewidth=2.0, zorder=2)
+        
+        # Use shaded area for all metrics (same as rewards)
+        ax.fill_between(
+            episodes,
+            means - stds,
+            means + stds,
+            alpha=0.25,
+            color=color,
+            zorder=1,
+        )
     
-    plt.title(title)
-    plt.xlabel("Episode")
-    plt.ylabel(ylabel)
-    plt.grid(True, linestyle="--", alpha=0.4)
-    plt.legend()
+    ax.set_xlabel("Episode", fontweight='normal')
+    ax.set_ylabel(ylabel, fontweight='normal')
+    ax.set_title(title, fontweight='bold', pad=10)
+    ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
+    ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
     plt.tight_layout()
-    plt.savefig(output_path, dpi=160)
+    # Save as PNG
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+    # Also save as PDF for publication
+    pdf_path = output_path.replace('.png', '.pdf')
+    plt.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close()
     return True
 
@@ -264,21 +326,27 @@ def _plot_social_subplots_averaged(
     smooth_window: int = 1,
     error_bar_step: int = 10,
 ) -> bool:
-    """Plot social metrics as subplots with averaged values (black line with red error bars)."""
+    """Plot social metrics as subplots with averaged values (shaded area)."""
     ordered_names = [name for name in SOCIAL_ORDER if name in series_dict]
     if not ordered_names:
         ordered_names = [name for name in series_dict.keys() if series_dict[name][0].size > 0]
     if not ordered_names:
         return False
     
+    # Capitalize metric names for display
+    def capitalize_metric(name: str) -> str:
+        return name.capitalize()
+    
     if len(ordered_names) == 4:
-        fig, axes = plt.subplots(2, 2, figsize=(12, 7), sharex=True)
+        fig, axes = plt.subplots(2, 2, figsize=(7, 5), sharex=True)
         axes_list = axes.flatten()
     else:
         fig, axes = plt.subplots(
-            len(ordered_names), 1, figsize=(10, 3 * len(ordered_names)), sharex=True
+            len(ordered_names), 1, figsize=(6, 2.5 * len(ordered_names)), sharex=True
         )
         axes_list = [axes] if len(ordered_names) == 1 else list(axes)
+    
+    color = PUBLICATION_COLORS[0]  # Use consistent color for all subplots
     
     for ax, name in zip(axes_list, ordered_names):
         episodes, means, stds = series_dict[name]
@@ -298,35 +366,163 @@ def _plot_social_subplots_averaged(
             means = np.array(smoothed_means)
             stds = np.array(smoothed_stds)
         
-        # Plot line (default blue color)
-        ax.plot(episodes, means, label=name, linewidth=2)
+        # Plot line
+        ax.plot(episodes, means, label=capitalize_metric(name), color=color, linewidth=2.0, zorder=2)
         
-        # Plot black error bars (thinned)
-        ep_thin, means_thin, stds_thin = _thin_error_bars(episodes, means, stds, error_bar_step)
-        ax.errorbar(
-            ep_thin,
-            means_thin,
-            yerr=stds_thin,
-            fmt='none',  # Don't draw line or markers, just error bars
-            color='black',
-            capsize=3,
-            capthick=1.5,
-            elinewidth=1.5,
-            alpha=0.7,
+        # Plot shaded area (same as rewards)
+        ax.fill_between(
+            episodes,
+            means - stds,
+            means + stds,
+            alpha=0.25,
+            color=color,
+            zorder=1,
         )
-        ax.set_ylabel(name)
-        ax.grid(True, linestyle="--", alpha=0.4)
-        ax.legend(loc="upper right")
+        ax.set_ylabel(capitalize_metric(name), fontweight='normal')
+        ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
+        ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
     
     if len(ordered_names) == 4:
         for ax in axes_list[-2:]:
-            ax.set_xlabel("Episode")
+            ax.set_xlabel("Episode", fontweight='normal')
     else:
-        axes_list[-1].set_xlabel("Episode")
-    fig.suptitle(title)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(output_path, dpi=160)
+        axes_list[-1].set_xlabel("Episode", fontweight='normal')
+    
+    fig.suptitle(title, fontweight='bold', y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    # Save as PNG
+    fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+    # Also save as PDF for publication
+    pdf_path = output_path.replace('.png', '.pdf')
+    fig.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
+    return True
+
+
+def _extract_per_agent_predicted_rewards(
+    records: List[Dict[str, Any]]
+) -> Dict[str, List[Tuple[int, float]]]:
+    """
+    Extract per-agent predicted reward series from records.
+    Returns a dictionary mapping agent_id to list of (episode, reward) tuples.
+    """
+    agent_series: Dict[str, List[Tuple[int, float]]] = {}
+    
+    for record in records:
+        episode = record.get("episode")
+        if episode is None:
+            continue
+        if isinstance(episode, float):
+            episode = int(episode)
+        
+        reward_pred_per_agent = record.get("reward_pred_per_agent")
+        if isinstance(reward_pred_per_agent, dict):
+            for agent_id, reward in reward_pred_per_agent.items():
+                if isinstance(reward, (int, float)):
+                    if agent_id not in agent_series:
+                        agent_series[agent_id] = []
+                    agent_series[agent_id].append((episode, float(reward)))
+    
+    # Sort each series by episode
+    for agent_id in agent_series:
+        agent_series[agent_id] = sorted(agent_series[agent_id], key=lambda x: x[0])
+    
+    return agent_series
+
+
+def _plot_normalized_per_agent_predicted_rewards(
+    all_agent_series: Dict[str, List[List[Tuple[int, float]]]],
+    title: str,
+    output_path: str,
+    smooth_window: int = 1,
+) -> bool:
+    """
+    Plot normalized per-agent predicted rewards on the same graph.
+    Each agent's series is normalized independently to [0, 1].
+    """
+    if not all_agent_series:
+        return False
+    
+    # Align and compute averages for each agent
+    agent_averaged: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+    for agent_id, series_list in all_agent_series.items():
+        if series_list:
+            episodes, means, stds = _align_series(series_list)
+            if len(episodes) > 0:
+                agent_averaged[agent_id] = (episodes, means, stds)
+    
+    if not agent_averaged:
+        return False
+    
+    # Normalize each agent's series independently to [0, 1]
+    agent_averaged_normalized: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+    for agent_id, (episodes, means, stds) in agent_averaged.items():
+        min_val = np.nanmin(means)
+        max_val = np.nanmax(means)
+        if max_val > min_val:
+            means_norm = (means - min_val) / (max_val - min_val)
+            stds_norm = stds / (max_val - min_val)
+        else:
+            means_norm = means
+            stds_norm = stds
+        agent_averaged_normalized[agent_id] = (episodes, means_norm, stds_norm)
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=(6, 4))
+    
+    # Sort agent IDs for consistent ordering
+    sorted_agent_ids = sorted(agent_averaged_normalized.keys())
+    color_cycle = iter(PUBLICATION_COLORS)
+    
+    for agent_id in sorted_agent_ids:
+        episodes, means, stds = agent_averaged_normalized[agent_id]
+        
+        # Apply smoothing if requested
+        if smooth_window > 1 and len(episodes) > 1:
+            smoothed_means = []
+            smoothed_stds = []
+            for i in range(len(episodes)):
+                start = max(0, i - smooth_window + 1)
+                end = min(len(episodes), i + 1)
+                window_means = means[start:end]
+                smoothed_means.append(np.nanmean(window_means))
+                smoothed_stds.append(np.nanstd(window_means) if len(window_means) > 1 else 0.0)
+            means = np.array(smoothed_means)
+            stds = np.array(smoothed_stds)
+        
+        color = next(color_cycle)
+        label = agent_id.replace('agent-', 'Agent ')
+        
+        # Plot line
+        ax.plot(episodes, means, label=label, color=color, linewidth=2.0, zorder=2)
+        
+        # Plot shaded area
+        ax.fill_between(
+            episodes,
+            means - stds,
+            means + stds,
+            alpha=0.25,
+            color=color,
+            zorder=1,
+        )
+    
+    ax.set_xlabel("Episode", fontweight='normal')
+    ax.set_ylabel("Normalized Predicted Reward", fontweight='normal')
+    ax.set_title(title, fontweight='bold', pad=10)
+    ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
+    ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    plt.tight_layout()
+    # Save as PNG
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+    # Also save as PDF for publication
+    pdf_path = output_path.replace('.png', '.pdf')
+    plt.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.close()
     return True
 
 
@@ -355,7 +551,7 @@ def plot_multiple_runs(
     output_dir: str,
     smooth_window: int = 1,
     normalize: bool = False,
-) -> Tuple[bool, bool]:
+) -> Tuple[bool, bool, bool]:
     """
     Plot averaged metrics across multiple runs with standard deviation.
     
@@ -366,7 +562,7 @@ def plot_multiple_runs(
         normalize: Whether to normalize metrics to [0, 1]
     
     Returns:
-        Tuple of (rewards_plotted, social_plotted)
+        Tuple of (rewards_plotted, social_plotted, agent_pred_plotted)
     """
     if not run_dirs:
         raise ValueError("No run directories provided")
@@ -376,6 +572,7 @@ def plot_multiple_runs(
         key: [] for key in REWARD_KEYS
     }
     all_social_series: Dict[str, List[List[Tuple[int, float]]]] = {}
+    all_agent_pred_rewards: Dict[str, List[List[Tuple[int, float]]]] = {}
     
     algo_name = "unknown"
     rm_phi = ""
@@ -405,6 +602,13 @@ def plot_multiple_runs(
                 if name not in all_social_series:
                     all_social_series[name] = []
                 all_social_series[name].append(series)
+        
+        # Extract per-agent predicted rewards
+        agent_series = _extract_per_agent_predicted_rewards(records)
+        for agent_id, series in agent_series.items():
+            if agent_id not in all_agent_pred_rewards:
+                all_agent_pred_rewards[agent_id] = []
+            all_agent_pred_rewards[agent_id].append(series)
     
     # Compute averages and stds
     rewards_averaged: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
@@ -445,20 +649,24 @@ def plot_multiple_runs(
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     
-    # Generate titles
-    reward_title = f"Average Rewards Across {len(run_dirs)} Runs (algo={algo_name})"
+    # Generate titles (more concise for publication)
+    algo_display = algo_name.upper() if algo_name != "unknown" else "Unknown"
     if rm_phi:
-        reward_title = f"{reward_title}, reward_model_phi={rm_phi}"
-    social_title = f"Average Social Metrics Across {len(run_dirs)} Runs (algo={algo_name})"
+        # Format phi value for display (convert _x_ to \times, remove other underscores)
+        phi_display = _format_label(rm_phi)
+        reward_title = f"Average Rewards ({algo_display}, {len(run_dirs)} runs, φ={phi_display})"
+    else:
+        reward_title = f"Average Rewards ({algo_display}, {len(run_dirs)} runs)"
+    social_title = f"Average Social Metrics ({algo_display}, {len(run_dirs)} runs)"
     
     if normalize:
-        reward_title = f"{reward_title} (normalized)"
-        social_title = f"{social_title} (normalized)"
-        reward_ylabel = "Normalized value"
-        social_ylabel = "Normalized value"
+        reward_title = f"{reward_title} (Normalized)"
+        social_title = f"{social_title} (Normalized)"
+        reward_ylabel = "Normalized Value"
+        social_ylabel = "Normalized Value"
     else:
         reward_ylabel = "Reward"
-        social_ylabel = "Metric"
+        social_ylabel = "Metric Value"
     
     # Plot rewards
     rewards_path = os.path.join(output_dir, "rewards_averaged.png")
@@ -501,7 +709,21 @@ def plot_multiple_runs(
             error_bar_step=10,
         )
     
-    return rewards_plotted, social_plotted
+    # Plot normalized per-agent predicted rewards
+    agent_pred_title = f"Normalized Predicted Rewards per Agent ({algo_display}, {len(run_dirs)} runs)"
+    if rm_phi:
+        # Format phi value for display (convert _x_ to \times, remove other underscores)
+        phi_display = _format_label(rm_phi)
+        agent_pred_title = f"Normalized Predicted Rewards per Agent ({algo_display}, {len(run_dirs)} runs, φ={phi_display})"
+    agent_pred_path = os.path.join(output_dir, "agent_predicted_rewards_normalized.png")
+    agent_pred_plotted = _plot_normalized_per_agent_predicted_rewards(
+        all_agent_pred_rewards,
+        title=agent_pred_title,
+        output_path=agent_pred_path,
+        smooth_window=smooth_window,
+    )
+    
+    return rewards_plotted, social_plotted, agent_pred_plotted
 
 
 def main() -> int:
@@ -533,7 +755,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     
-    rewards_plotted, social_plotted = plot_multiple_runs(
+    rewards_plotted, social_plotted, agent_pred_plotted = plot_multiple_runs(
         args.run_dirs,
         output_dir=args.output_dir,
         smooth_window=args.smooth,
@@ -541,14 +763,28 @@ def main() -> int:
     )
     
     if rewards_plotted:
-        print(f"Saved averaged rewards plot to {os.path.join(args.output_dir, 'rewards_averaged.png')}")
+        png_path = os.path.join(args.output_dir, 'rewards_averaged.png')
+        pdf_path = os.path.join(args.output_dir, 'rewards_averaged.pdf')
+        print(f"Saved averaged rewards plot to {png_path}")
+        print(f"Saved averaged rewards plot (PDF) to {pdf_path}")
     else:
         print("No reward metrics found to plot.")
     
     if social_plotted:
-        print(f"Saved averaged social metrics plot to {os.path.join(args.output_dir, 'social_metrics_averaged.png')}")
+        png_path = os.path.join(args.output_dir, 'social_metrics_averaged.png')
+        pdf_path = os.path.join(args.output_dir, 'social_metrics_averaged.pdf')
+        print(f"Saved averaged social metrics plot to {png_path}")
+        print(f"Saved averaged social metrics plot (PDF) to {pdf_path}")
     else:
         print("No social metrics found to plot.")
+    
+    if agent_pred_plotted:
+        png_path = os.path.join(args.output_dir, 'agent_predicted_rewards_normalized.png')
+        pdf_path = os.path.join(args.output_dir, 'agent_predicted_rewards_normalized.pdf')
+        print(f"Saved normalized per-agent predicted rewards plot to {png_path}")
+        print(f"Saved normalized per-agent predicted rewards plot (PDF) to {pdf_path}")
+    else:
+        print("No per-agent predicted reward metrics found to plot.")
     
     return 0
 
