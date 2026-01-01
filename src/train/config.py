@@ -40,21 +40,19 @@ class DQNConfig:
 
 @dataclass
 class PPOConfig:
-    policy: str = "MultiInputPolicy"
-    total_timesteps: int = 100_000
-    per_agent_timesteps: int = 100_000
     learning_rate: float = 3e-4
     gamma: float = 0.99
-    n_steps: int = 1024
-    batch_size: int = 256
     gae_lambda: float = 0.95
     clip_range: float = 0.2
-    ent_coef: float = 0.0
+    ent_coef: float = 0.01
     vf_coef: float = 0.5
-    policy_kwargs: Dict[str, Any] = field(default_factory=dict)
-    flatten_obs: bool = True
-    multi_agent_mode: str = "independent"
-    opponent_policy: str = "random"
+    n_steps: int = 1024
+    batch_size: int = 256
+    update_epochs: int = 4
+    hidden_size: int = 256
+    max_grad_norm: float = 0.5
+    normalize_obs: bool = False
+    flatten_obs: bool = False
     device: str = "auto"
 
     @staticmethod

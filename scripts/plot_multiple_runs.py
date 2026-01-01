@@ -312,9 +312,6 @@ def _plot_multiple_averaged_series(
     plt.tight_layout()
     # Save as PNG
     plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
-    # Also save as PDF for publication
-    pdf_path = output_path.replace('.png', '.pdf')
-    plt.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close()
     return True
 
@@ -394,9 +391,6 @@ def _plot_social_subplots_averaged(
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     # Save as PNG
     fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
-    # Also save as PDF for publication
-    pdf_path = output_path.replace('.png', '.pdf')
-    fig.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
     return True
 
@@ -519,9 +513,82 @@ def _plot_normalized_per_agent_predicted_rewards(
     plt.tight_layout()
     # Save as PNG
     plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
-    # Also save as PDF for publication
-    pdf_path = output_path.replace('.png', '.pdf')
-    plt.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.close()
+    return True
+
+
+def _plot_single_agent_normalized_predicted_rewards(
+    agent_id: str,
+    series_list: List[List[Tuple[int, float]]],
+    title: str,
+    output_path: str,
+    smooth_window: int = 1,
+) -> bool:
+    """
+    Plot normalized predicted rewards for a single agent across multiple runs.
+    Each run's series is normalized separately to [0, 1] and plotted as a separate line.
+    """
+    if not series_list:
+        return False
+    
+    # Create plot using same style as _plot_multiple_averaged_series
+    fig, ax = plt.subplots(figsize=(6, 4))
+    
+    # Get color cycle
+    color_cycle = iter(PUBLICATION_COLORS)
+    
+    plotted = False
+    for run_idx, series in enumerate(series_list):
+        if not series:
+            continue
+        
+        # Sort series by episode
+        series = sorted(series, key=lambda x: x[0])
+        episodes = np.array([ep for ep, _ in series])
+        values = np.array([val for _, val in series])
+        
+        # Normalize this run's series separately to [0, 1]
+        min_val = np.nanmin(values)
+        max_val = np.nanmax(values)
+        if max_val > min_val:
+            values_norm = (values - min_val) / (max_val - min_val)
+        else:
+            values_norm = values
+        
+        # Apply smoothing if requested
+        if smooth_window > 1 and len(values_norm) > 1:
+            smoothed_values = []
+            for i in range(len(values_norm)):
+                start = max(0, i - smooth_window + 1)
+                end = min(len(values_norm), i + 1)
+                window_values = values_norm[start:end]
+                smoothed_values.append(np.nanmean(window_values))
+            values_norm = np.array(smoothed_values)
+        
+        # Get color for this run
+        color = next(color_cycle)
+        label = f"Run {run_idx + 1}"
+        
+        # Plot the line
+        ax.plot(episodes, values_norm, label=label, linewidth=2.0, zorder=2, color=color)
+        
+        plotted = True
+    
+    if not plotted:
+        plt.close()
+        return False
+    
+    ax.set_xlabel("Episode", fontweight='normal')
+    ax.set_ylabel("Normalized Predicted Reward", fontweight='normal')
+    ax.set_title(title, fontweight='bold', pad=10)
+    ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
+    ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    plt.tight_layout()
+    # Save as PNG
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close()
     return True
 
@@ -551,7 +618,7 @@ def plot_multiple_runs(
     output_dir: str,
     smooth_window: int = 1,
     normalize: bool = False,
-) -> Tuple[bool, bool, bool]:
+) -> Tuple[bool, bool, bool, List[str]]:
     """
     Plot averaged metrics across multiple runs with standard deviation.
     
@@ -562,7 +629,7 @@ def plot_multiple_runs(
         normalize: Whether to normalize metrics to [0, 1]
     
     Returns:
-        Tuple of (rewards_plotted, social_plotted, agent_pred_plotted)
+        Tuple of (rewards_plotted, social_plotted, agent_pred_plotted, plotted_agent_ids)
     """
     if not run_dirs:
         raise ValueError("No run directories provided")
@@ -709,7 +776,7 @@ def plot_multiple_runs(
             error_bar_step=10,
         )
     
-    # Plot normalized per-agent predicted rewards
+    # Plot normalized per-agent predicted rewards (all agents on one graph)
     agent_pred_title = f"Normalized Predicted Rewards per Agent ({algo_display}, {len(run_dirs)} runs)"
     if rm_phi:
         # Format phi value for display (convert _x_ to \times, remove other underscores)
@@ -723,7 +790,32 @@ def plot_multiple_runs(
         smooth_window=smooth_window,
     )
     
-    return rewards_plotted, social_plotted, agent_pred_plotted
+    # Plot normalized predicted rewards for each agent separately
+    plotted_agent_ids = []
+    for agent_id, series_list in all_agent_pred_rewards.items():
+        if not series_list:
+            continue
+        
+        agent_label = agent_id.replace('agent-', 'Agent ')
+        agent_title = f"Normalized Predicted Rewards - {agent_label} ({algo_display}, {len(run_dirs)} runs)"
+        if rm_phi:
+            phi_display = _format_label(rm_phi)
+            agent_title = f"Normalized Predicted Rewards - {agent_label} ({algo_display}, {len(run_dirs)} runs, φ={phi_display})"
+        
+        # Create filename from agent_id (replace special characters)
+        safe_agent_id = agent_id.replace('agent-', 'agent_').replace('-', '_')
+        agent_path = os.path.join(output_dir, f"reward_pred_{safe_agent_id}_normalized.png")
+        
+        if _plot_single_agent_normalized_predicted_rewards(
+            agent_id,
+            series_list,
+            title=agent_title,
+            output_path=agent_path,
+            smooth_window=smooth_window,
+        ):
+            plotted_agent_ids.append(agent_id)
+    
+    return rewards_plotted, social_plotted, agent_pred_plotted, plotted_agent_ids
 
 
 def main() -> int:
@@ -755,7 +847,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     
-    rewards_plotted, social_plotted, agent_pred_plotted = plot_multiple_runs(
+    rewards_plotted, social_plotted, agent_pred_plotted, plotted_agent_ids = plot_multiple_runs(
         args.run_dirs,
         output_dir=args.output_dir,
         smooth_window=args.smooth,
@@ -764,27 +856,29 @@ def main() -> int:
     
     if rewards_plotted:
         png_path = os.path.join(args.output_dir, 'rewards_averaged.png')
-        pdf_path = os.path.join(args.output_dir, 'rewards_averaged.pdf')
         print(f"Saved averaged rewards plot to {png_path}")
-        print(f"Saved averaged rewards plot (PDF) to {pdf_path}")
     else:
         print("No reward metrics found to plot.")
     
     if social_plotted:
         png_path = os.path.join(args.output_dir, 'social_metrics_averaged.png')
-        pdf_path = os.path.join(args.output_dir, 'social_metrics_averaged.pdf')
         print(f"Saved averaged social metrics plot to {png_path}")
-        print(f"Saved averaged social metrics plot (PDF) to {pdf_path}")
     else:
         print("No social metrics found to plot.")
     
     if agent_pred_plotted:
         png_path = os.path.join(args.output_dir, 'agent_predicted_rewards_normalized.png')
-        pdf_path = os.path.join(args.output_dir, 'agent_predicted_rewards_normalized.pdf')
         print(f"Saved normalized per-agent predicted rewards plot to {png_path}")
-        print(f"Saved normalized per-agent predicted rewards plot (PDF) to {pdf_path}")
     else:
         print("No per-agent predicted reward metrics found to plot.")
+    
+    # Print messages for individual agent plots
+    if plotted_agent_ids:
+        for agent_id in sorted(plotted_agent_ids):
+            safe_agent_id = agent_id.replace('agent-', 'agent_').replace('-', '_')
+            png_path = os.path.join(args.output_dir, f'reward_pred_{safe_agent_id}_normalized.png')
+            agent_label = agent_id.replace('agent-', 'Agent ')
+            print(f"Saved normalized predicted rewards plot for {agent_label} to {png_path}")
     
     return 0
 
