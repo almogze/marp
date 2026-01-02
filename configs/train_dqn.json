@@ -1,6 +1,5 @@
 {
   "episodes": 250,
-  "steps_per_episode": 600,
   "seed": 0,
   "env": {
     "map_type": "small",

@@ -142,7 +142,6 @@ class RewardModelConfig:
 @dataclass
 class TrainerConfig:
     episodes: int = 100
-    steps_per_episode: int = 600
     seed: Optional[int] = 0
     env: EnvConfig = field(default_factory=EnvConfig)
     algorithm: AlgorithmConfig = field(default_factory=AlgorithmConfig)
@@ -153,7 +152,6 @@ class TrainerConfig:
     def from_dict(data: Dict[str, Any]) -> "TrainerConfig":
         return TrainerConfig(
             episodes=data.get("episodes", 100),
-            steps_per_episode=data.get("steps_per_episode", 600),
             seed=data.get("seed", 0) if "seed" in data else None,
             env=EnvConfig.from_dict(data.get("env", {})),
             algorithm=AlgorithmConfig.from_dict(data.get("algorithm", {})),
@@ -171,7 +169,6 @@ def load_config(path: str) -> TrainerConfig:
 def save_config(path: str, config: TrainerConfig) -> None:
     payload = {
         "episodes": config.episodes,
-        "steps_per_episode": config.steps_per_episode,
         "seed": config.seed if config.seed is not None else None,
         "env": config.env.__dict__,
         "algorithm": {

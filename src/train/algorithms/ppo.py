@@ -96,7 +96,7 @@ class PPOAlgorithm(Algorithm):
                 raise ValueError(f"Unknown features_extractor '{extractor_name}'.")
             policy_kwargs["features_extractor_class"] = mapping[extractor_name]
 
-        max_steps = config.steps_per_episode
+        max_steps = config.env.ep_length
         agent_ids = list(env.agents.keys())
         if env.num_agents == 1 or self.config.multi_agent_mode != "independent":
             agent_ids = [agent_ids[0]]

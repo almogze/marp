@@ -123,7 +123,7 @@ class Trainer:
             episode_agent_trajs = {agent_id: [] for agent_id in obs.keys()} if rm_cfg.enabled else None
             step_count = 0
             video_recorder.start(episode)
-            for step in range(self.config.steps_per_episode):
+            for step in range(self.config.env.ep_length):
                 actions = self.algorithm.act(obs, step)
                 step_obs_imgs = {}
                 if rm_cfg.enabled:
