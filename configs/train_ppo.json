@@ -8,8 +8,7 @@
     "agent_view_range": 5,
     "ep_length": 600,
     "render": false,
-    "spawn_speed": "slow",
-    "metric": "Efficiency"
+    "spawn_speed": "slow"
   },
   "algorithm": {
     "name": "ppo",

@@ -11,7 +11,6 @@ class EnvConfig:
     ep_length: int = 600
     render: bool = False
     spawn_speed: str = "slow"
-    metric: str = "Efficiency"
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "EnvConfig":

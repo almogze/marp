@@ -8,8 +8,7 @@
     "agent_view_range": 5,
     "ep_length": 600,
     "render": false,
-    "spawn_speed": "slow",
-    "metric": "Efficiency"
+    "spawn_speed": "slow"
   },
   "algorithm": {
     "name": "dqn",
@@ -22,7 +21,7 @@
       "batch_size": 32,
       "replay_buffer_size": 5000,
       "train_after": 100,
-      "train_every": 1,
+      "train_every": 4,
       "target_update_freq": 200,
       "normalize_obs": true,
       "device": "auto"

@@ -101,16 +101,29 @@ class DQNAlgorithm(Algorithm):
         return img.astype(np.float32)
 
     def act(self, observations: Dict[str, Any], step: int) -> Dict[str, int]:
+        # Batch all agent observations together for efficient processing
+        obs_list = [self._format_obs(observations, agent_id) for agent_id in self.agent_ids]
+        
+        # Stack observations into a single batch tensor
+        obs_batch = np.stack(obs_list, axis=0)
+        obs_tensor = torch.from_numpy(obs_batch).float().to(self.device)
+        
+        # Single batched forward pass for all agents
+        with torch.no_grad():
+            q_values = self.model(obs_tensor)  # Shape: (num_agents, num_actions)
+        
+        # Epsilon-greedy selection: generate random mask for all agents at once
+        random_mask = np.random.random(len(self.agent_ids)) < self.epsilon
+        q_values_np = q_values.cpu().numpy()
+        
+        # Select actions for all agents
         actions = {}
-        for agent_id in self.agent_ids:
-            obs = self._format_obs(observations, agent_id)
-            if random.random() < self.epsilon:
+        for idx, agent_id in enumerate(self.agent_ids):
+            if random_mask[idx]:
                 actions[agent_id] = random.randrange(self.num_actions)
             else:
-                obs_tensor = torch.from_numpy(np.expand_dims(obs, axis=0)).float().to(self.device)
-                with torch.no_grad():
-                    q_values = self.model(obs_tensor)
-                actions[agent_id] = int(torch.argmax(q_values[0]).item())
+                actions[agent_id] = int(np.argmax(q_values_np[idx]))
+        
         return actions
 
     def observe(

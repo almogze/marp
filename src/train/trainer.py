@@ -49,7 +49,6 @@ class Trainer:
             agent_view_range=env_cfg.agent_view_range,
             ep_length=env_cfg.ep_length,
             spawn_speed=env_cfg.spawn_speed,
-            metric=env_cfg.metric,
         )
 
     def _build_logger(self) -> ResultLogger:

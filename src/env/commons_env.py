@@ -23,12 +23,11 @@ MAP = {"small": SMALL_HARVEST_MAP,
 class HarvestCommonsEnv(MapEnv):
 
     def __init__(self, ascii_map=HARVEST_MAP, num_agents=1, render=False, agent_view_range=HARVEST_DEFAULT_VIEW_SIZE,
-                 color_map=None, ep_length=600, spawn_speed='slow', metric="Efficiency"):
+                 color_map=None, ep_length=600, spawn_speed='slow'):
         self.ep_length = ep_length
         self.apple_points = []
         self.agent_view_range = agent_view_range
         self.spawn_speed = SPAWN_PROB_SLOW if spawn_speed=="slow" else SPAWN_PROB_FAST
-        self.metric=metric
 
         super().__init__(ascii_map, num_agents, render, color_map=color_map)
 

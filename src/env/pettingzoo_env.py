@@ -48,8 +48,9 @@ class ssd_parallel_env(ParallelEnv):
         if self.penalty: # simple punishment for fire action
             rews = {agent_id: -1 if infos[agent_id]['fire'] else r for agent_id, r in rews.items()}
             
-        # if rewards metric is not 0, zero all rewards for later insert desired rewards
-        if self.ssd_env.metric != 'Efficiency':
+        # Metric-based reward shaping removed - using standard Efficiency behavior
+        metric = getattr(self.ssd_env, 'metric', 'Efficiency')
+        if metric != 'Efficiency':
             for k in rews.keys():
                 rews[k] = 0
         if self.num_cycles >= self.ep_length:
@@ -59,10 +60,10 @@ class ssd_parallel_env(ParallelEnv):
                 infos[k]['metrics'] = self.ssd_env.get_social_metrics()
                 
             # inser desired rewards at tghe end if episode
-            if self.ssd_env.metric == 'Efficiency*Peace':  # eff * global peace
+            if metric == 'Efficiency*Peace':  # eff * global peace
                 for k in rews.keys():
                     rews[k] = infos[k]['metrics']['efficiency'] * infos[k]['metrics']['peace']
-            elif self.ssd_env.metric == 'Efficiency*Peace*Equality':  # eff * eq * global peace
+            elif metric == 'Efficiency*Peace*Equality':  # eff * eq * global peace
                 for k in rews.keys():
                     rews[k] = infos[k]['metrics']['efficiency'] * infos[k]['metrics']['peace'] * infos[k]['metrics']['equality']
             self.agents = [agent for agent in self.agents if not self.dones[agent]]
