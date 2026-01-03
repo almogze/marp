@@ -31,7 +31,9 @@ class VideoRecorder:
         # Always record if it's the last episode
         if self.total_episodes is not None and episode == self.total_episodes - 1:
             return True
-        # Otherwise record based on every_n_episodes
+        # Skip episode 0, then record based on every_n_episodes
+        if episode == 0:
+            return False
         return episode % self.every_n_episodes == 0
 
     def start(self, episode: int) -> None:
