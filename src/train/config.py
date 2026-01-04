@@ -115,6 +115,7 @@ class LoggingConfig:
     video_max_steps: int = 600
     video_fps: int = 10
     video_keep_frames: bool = False
+    log_agent_episode_details: bool = True
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "LoggingConfig":

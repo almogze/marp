@@ -578,9 +578,9 @@ def plot_multiple_runs(
     rm_phi = ""
     
     for run_dir in run_dirs:
-        metrics_path = os.path.join(run_dir, "metrics.json")
+        metrics_path = os.path.join(run_dir, "metrics.jsonl")
         if not os.path.isfile(metrics_path):
-            print(f"Warning: metrics.json not found in {run_dir}, skipping")
+            print(f"Warning: metrics.jsonl not found in {run_dir}, skipping")
             continue
         
         # Load context from first valid run
@@ -733,7 +733,7 @@ def main() -> int:
     parser.add_argument(
         "run_dirs",
         nargs="+",
-        help="Paths to run directories containing metrics.json files.",
+        help="Paths to run directories containing metrics.jsonl files.",
     )
     parser.add_argument(
         "--output-dir",

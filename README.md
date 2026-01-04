@@ -38,10 +38,16 @@ print('done')
 PY
 ```
 
-Logs are written to `logs/<run-name>/metrics.json` and `logs/<run-name>/config.json`.
+Logs are written to `logs/<run-name>/metrics.jsonl` and `logs/<run-name>/config.json`.
 Videos are written to `logs/<run-name>/videos/episode=XXXX.mp4`.
 TensorBoard logs are written to `logs/<run-name>/tensorboard/`.
+Extended agent episode information is written to `logs/<run-name>/extended_info/agent_X_episodes.csv`.
 Run folders include a reward-model suffix, e.g. `...-rm=off` or `...-rm=narrow_view`.
+
+**Detailed agent episode logs:** When `logging.log_agent_episode_details` is enabled (default: `true`), separate CSV files are created for each agent in the `extended_info/` subdirectory (e.g., `extended_info/agent_0_episodes.csv`, `extended_info/agent_1_episodes.csv`). Each row in the CSV represents one step within an episode, with the following columns:
+- Episode-level information (repeated for each step): `episode`, `wall_time_sec`, `total_steps`, `total_reward`, `total_predicted_reward` (if reward model enabled)
+- Step-level information: `step`, `action`, `reward`, `done`
+- Social metrics (repeated for each step): `social_efficiency`, `social_equality`, `social_sustainability`, `social_peace`, and other social metric fields
 
 View TensorBoard (live during training):
 
@@ -53,6 +59,7 @@ Config tips:
 - `logging.video_every_n_episodes` defaults to 100; reduce it to record more frequently.
 - `logging.video_max_steps` caps episode length in videos.
 - `logging.video_enabled=false` disables video capture for faster training.
+- `logging.log_agent_episode_details=true` (default) enables detailed per-agent episode logging to separate files.
 - The last episode is always recorded (if video is enabled), regardless of `video_every_n_episodes`.
 - Example configs: `configs/train_dqn.json`, `configs/train_ppo.json`, `configs/train_mappo.json`.
 
@@ -202,7 +209,7 @@ Checkpoints:
 
 ## Plotting run metrics
 
-Generate reward and social-metric plots from a run folder (expects `metrics.json`):
+Generate reward and social-metric plots from a run folder (expects `metrics.jsonl`):
 
 ```bash
 python scripts/plot_run_metrics.py logs/<run-name>

@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import time
@@ -10,10 +11,14 @@ class ResultLogger:
     def __init__(self, log_dir: str, run_name: str):
         self.run_dir = os.path.join(log_dir, run_name)
         os.makedirs(self.run_dir, exist_ok=True)
-        self.metrics_path = os.path.join(self.run_dir, "metrics.json")
+        self.metrics_path = os.path.join(self.run_dir, "metrics.jsonl")
         self._metrics_file = open(self.metrics_path, "a", encoding="utf-8")
         self.start_time = time.time()
         self._writer = SummaryWriter(os.path.join(self.run_dir, "tensorboard"))
+        # Agent-specific episode detail files (CSV writers and file handles)
+        self._agent_episode_files: Dict[str, Any] = {}
+        self._agent_csv_writers: Dict[str, csv.DictWriter] = {}
+        self._agent_headers_written: Dict[str, bool] = {}
 
     def log_config(self, config_payload: Dict[str, Any]) -> None:
         config_path = os.path.join(self.run_dir, "config.json")
@@ -85,8 +90,95 @@ class ResultLogger:
                 if isinstance(value, (int, float)):
                     self._writer.add_scalar(f"algo/{name}", float(value), step)
 
+    def log_agent_episode_details(self, agent_id: str, episode: int, episode_data: Dict[str, Any]) -> None:
+        """Log detailed episode data for a specific agent to a separate CSV file.
+        
+        Each step in the episode becomes a row in the CSV, with episode-level
+        information repeated in each row.
+        
+        Args:
+            agent_id: The agent identifier
+            episode: Episode number
+            episode_data: Dictionary containing step-by-step data (actions, rewards, etc.)
+        """
+        if agent_id not in self._agent_episode_files:
+            # Create extended_info subdirectory for CSV files
+            extended_info_dir = os.path.join(self.run_dir, "extended_info")
+            os.makedirs(extended_info_dir, exist_ok=True)
+            agent_log_path = os.path.join(extended_info_dir, f"agent_{agent_id}_episodes.csv")
+            self._agent_episode_files[agent_id] = open(agent_log_path, "a", encoding="utf-8", newline="")
+            self._agent_headers_written[agent_id] = False
+        
+        # Extract episode-level data
+        wall_time_sec = round(time.time() - self.start_time, 3)
+        total_steps = episode_data.get("total_steps", 0)
+        total_reward = episode_data.get("total_reward", 0.0)
+        total_predicted_reward = episode_data.get("total_predicted_reward")
+        social_metrics = episode_data.get("social_metrics", {})
+        steps_data = episode_data.get("steps", [])
+        
+        # Build CSV fieldnames
+        fieldnames = [
+            "episode", "wall_time_sec", "total_steps", "total_reward",
+            "step", "action", "reward", "done"
+        ]
+        if total_predicted_reward is not None:
+            fieldnames.insert(4, "total_predicted_reward")
+        
+        # Add social metrics fields
+        if isinstance(social_metrics, dict):
+            for key in sorted(social_metrics.keys()):
+                if key not in fieldnames:
+                    fieldnames.append(f"social_{key}")
+        
+        # Initialize CSV writer if needed
+        if agent_id not in self._agent_csv_writers:
+            writer = csv.DictWriter(self._agent_episode_files[agent_id], fieldnames=fieldnames)
+            self._agent_csv_writers[agent_id] = writer
+        
+        writer = self._agent_csv_writers[agent_id]
+        
+        # Write header if this is the first time
+        if not self._agent_headers_written[agent_id]:
+            writer.writeheader()
+            self._agent_headers_written[agent_id] = True
+        
+        # Write one row per step
+        for step_info in steps_data:
+            row = {}
+            # Only include fields that are in the writer's fieldnames
+            for fieldname in writer.fieldnames:
+                if fieldname == "episode":
+                    row[fieldname] = episode
+                elif fieldname == "wall_time_sec":
+                    row[fieldname] = wall_time_sec
+                elif fieldname == "total_steps":
+                    row[fieldname] = total_steps
+                elif fieldname == "total_reward":
+                    row[fieldname] = total_reward
+                elif fieldname == "total_predicted_reward":
+                    row[fieldname] = total_predicted_reward if total_predicted_reward is not None else ""
+                elif fieldname == "step":
+                    row[fieldname] = step_info.get("step", "")
+                elif fieldname == "action":
+                    row[fieldname] = step_info.get("action", "")
+                elif fieldname == "reward":
+                    row[fieldname] = step_info.get("reward", "")
+                elif fieldname == "done":
+                    row[fieldname] = step_info.get("done", "")
+                elif fieldname.startswith("social_") and isinstance(social_metrics, dict):
+                    metric_key = fieldname[7:]  # Remove "social_" prefix
+                    row[fieldname] = social_metrics.get(metric_key, "")
+            
+            writer.writerow(row)
+        
+        self._agent_episode_files[agent_id].flush()
+
     def close(self) -> None:
         if self._metrics_file:
             self._metrics_file.close()
+        for agent_file in self._agent_episode_files.values():
+            if agent_file:
+                agent_file.close()
         if self._writer:
             self._writer.close()

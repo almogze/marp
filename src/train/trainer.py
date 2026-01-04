@@ -122,6 +122,8 @@ class Trainer:
             episode_rewards = {agent_id: 0.0 for agent_id in obs.keys()}
             episode_pred_rewards = {agent_id: 0.0 for agent_id in obs.keys()} if rm_cfg.enabled else None
             episode_agent_trajs = {agent_id: [] for agent_id in obs.keys()} if rm_cfg.enabled else None
+            # Track detailed step-by-step data per agent for extended logging
+            agent_episode_details = {agent_id: [] for agent_id in obs.keys()} if self.config.logging.log_agent_episode_details else None
             step_count = 0
             video_recorder.start(episode)
             for step in range(self.config.env.ep_length):
@@ -146,6 +148,18 @@ class Trainer:
                 video_recorder.record(self.env, step)
                 for agent_id, reward in rewards.items():
                     episode_rewards[agent_id] += reward
+                # Track detailed step data per agent
+                if agent_episode_details is not None:
+                    for agent_id in obs.keys():
+                        step_data = {
+                            "step": step,
+                            "action": int(actions[agent_id]),
+                            "reward": float(rewards[agent_id]),
+                            "done": bool(dones.get(agent_id, False)),
+                        }
+                        if rm_cfg.enabled and pred_rewards is not None:
+                            step_data["predicted_reward"] = float(pred_rewards[agent_id])
+                        agent_episode_details[agent_id].append(step_data)
                 obs = next_obs
                 step_count = step + 1
                 global_step += 1
@@ -192,6 +206,19 @@ class Trainer:
                 payload["reward_pred_per_agent"] = episode_pred_rewards
             if episode % self.config.logging.log_interval == 0:
                 self.logger.log_episode(payload)
+            # Log detailed agent episode data to separate files
+            if agent_episode_details is not None:
+                for agent_id, details in agent_episode_details.items():
+                    episode_summary = {
+                        "total_steps": step_count,
+                        "total_reward": float(episode_rewards[agent_id]),
+                        "steps": details,
+                    }
+                    if rm_cfg.enabled and episode_pred_rewards is not None:
+                        episode_summary["total_predicted_reward"] = float(episode_pred_rewards[agent_id])
+                    if metrics:
+                        episode_summary["social_metrics"] = metrics
+                    self.logger.log_agent_episode_details(agent_id, episode, episode_summary)
             video_recorder.finish()
 
         if hasattr(self.algorithm, "save"):

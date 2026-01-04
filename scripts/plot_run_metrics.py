@@ -196,9 +196,9 @@ def _plot_social_subplots(
 
 
 def generate_run_plots(run_dir: str, smooth_window: int, normalize: bool) -> Tuple[bool, bool]:
-    metrics_path = os.path.join(run_dir, "metrics.json")
+    metrics_path = os.path.join(run_dir, "metrics.jsonl")
     if not os.path.isfile(metrics_path):
-        raise FileNotFoundError(f"metrics.json not found in {run_dir}")
+        raise FileNotFoundError(f"metrics.jsonl not found in {run_dir}")
 
     algo_name, rm_phi = _load_run_context(run_dir)
     reward_title = f"Rewards (algo={algo_name})"
@@ -269,7 +269,7 @@ def main() -> int:
     )
     parser.add_argument(
         "run_dir",
-        help="Path to a run folder containing metrics.json or a metrics.json file.",
+        help="Path to a run folder containing metrics.jsonl or a metrics.jsonl file.",
     )
     parser.add_argument(
         "--smooth",
