@@ -151,11 +151,21 @@ class Trainer:
                 # Track detailed step data per agent
                 if agent_episode_details is not None:
                     for agent_id in obs.keys():
+                        # Check if an apple was eaten (reward > 0 indicates apple consumption)
+                        apple_eaten = bool(rewards[agent_id] > 0)
+                        
+                        # Count nearby apples in agent's view
+                        agent = self.env.agents[agent_id]
+                        agent_view = agent.get_state()
+                        nearby_apples = int((agent_view == 'A').sum())
+                        
                         step_data = {
                             "step": step,
                             "action": int(actions[agent_id]),
                             "reward": float(rewards[agent_id]),
                             "done": bool(dones.get(agent_id, False)),
+                            "apple_eaten": apple_eaten,
+                            "nearby_apples": nearby_apples,
                         }
                         if rm_cfg.enabled and pred_rewards is not None:
                             step_data["predicted_reward"] = float(pred_rewards[agent_id])

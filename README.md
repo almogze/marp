@@ -45,9 +45,13 @@ Extended agent episode information is written to `logs/<run-name>/extended_info/
 Run folders include a reward-model suffix, e.g. `...-rm=off` or `...-rm=narrow_view`.
 
 **Detailed agent episode logs:** When `logging.log_agent_episode_details` is enabled (default: `true`), separate CSV files are created for each agent in the `extended_info/` subdirectory (e.g., `extended_info/agent_0_episodes.csv`, `extended_info/agent_1_episodes.csv`). Each row in the CSV represents one step within an episode, with the following columns:
-- Episode-level information (repeated for each step): `episode`, `wall_time_sec`, `total_steps`, `total_reward`, `total_predicted_reward` (if reward model enabled)
-- Step-level information: `step`, `action`, `reward`, `done`
-- Social metrics (repeated for each step): `social_efficiency`, `social_equality`, `social_sustainability`, `social_peace`, and other social metric fields
+- `episode`: Episode number
+- `step`: Step number within the episode
+- `action`: Action taken by the agent
+- `reward`: Reward received for this step
+- `predicted_reward`: Predicted reward for this step (only if reward model enabled)
+- `apple_eaten`: Boolean indicating whether an apple was consumed in the current step (True if reward > 0)
+- `nearby_apples`: Integer count of apples visible in the agent's view range
 
 View TensorBoard (live during training):
 

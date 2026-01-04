@@ -119,17 +119,14 @@ class ResultLogger:
         
         # Build CSV fieldnames
         fieldnames = [
-            "episode", "wall_time_sec", "total_steps", "total_reward",
-            "step", "action", "reward", "done"
+            "episode", "step", "action", "reward", "apple_eaten", "nearby_apples"
         ]
-        if total_predicted_reward is not None:
-            fieldnames.insert(4, "total_predicted_reward")
-        
-        # Add social metrics fields
-        if isinstance(social_metrics, dict):
-            for key in sorted(social_metrics.keys()):
-                if key not in fieldnames:
-                    fieldnames.append(f"social_{key}")
+        # Check if any step has predicted_reward (step-level predicted reward)
+        has_predicted_reward = any("predicted_reward" in step_info for step_info in steps_data)
+        if has_predicted_reward:
+            # Insert after "reward" column
+            reward_idx = fieldnames.index("reward")
+            fieldnames.insert(reward_idx + 1, "predicted_reward")
         
         # Initialize CSV writer if needed
         if agent_id not in self._agent_csv_writers:
@@ -150,25 +147,18 @@ class ResultLogger:
             for fieldname in writer.fieldnames:
                 if fieldname == "episode":
                     row[fieldname] = episode
-                elif fieldname == "wall_time_sec":
-                    row[fieldname] = wall_time_sec
-                elif fieldname == "total_steps":
-                    row[fieldname] = total_steps
-                elif fieldname == "total_reward":
-                    row[fieldname] = total_reward
-                elif fieldname == "total_predicted_reward":
-                    row[fieldname] = total_predicted_reward if total_predicted_reward is not None else ""
                 elif fieldname == "step":
                     row[fieldname] = step_info.get("step", "")
                 elif fieldname == "action":
                     row[fieldname] = step_info.get("action", "")
                 elif fieldname == "reward":
                     row[fieldname] = step_info.get("reward", "")
-                elif fieldname == "done":
-                    row[fieldname] = step_info.get("done", "")
-                elif fieldname.startswith("social_") and isinstance(social_metrics, dict):
-                    metric_key = fieldname[7:]  # Remove "social_" prefix
-                    row[fieldname] = social_metrics.get(metric_key, "")
+                elif fieldname == "predicted_reward":
+                    row[fieldname] = step_info.get("predicted_reward", "")
+                elif fieldname == "apple_eaten":
+                    row[fieldname] = step_info.get("apple_eaten", "")
+                elif fieldname == "nearby_apples":
+                    row[fieldname] = step_info.get("nearby_apples", "")
             
             writer.writerow(row)
         
