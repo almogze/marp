@@ -8,7 +8,8 @@
     "ep_length": 600,
     "render": false,
     "spawn_speed": "slow",
-    "metric": "Efficiency"
+    "metric": "Efficiency",
+    "penalty": false
   },
   "algorithm": {
     "name": "ppo",

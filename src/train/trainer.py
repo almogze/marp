@@ -50,6 +50,7 @@ class Trainer:
             ep_length=env_cfg.ep_length,
             spawn_speed=env_cfg.spawn_speed,
             metric=env_cfg.metric,
+            penalty=env_cfg.penalty,
         )
 
     def _build_logger(self) -> ResultLogger:

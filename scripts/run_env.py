@@ -54,6 +54,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", help="Reward model mode (e.g., narrow_view).")
     parser.add_argument("--phi", help="Reward model objective (e.g., efficiency_x_peace).")
     parser.add_argument(
+        "--penalty",
+        action="store_true",
+        help="Enable penalty for FIRE action (agents get -1 reward when using FIRE).",
+    )
+    parser.add_argument(
         "--sequence-file",
         type=str,
         help="Path to JSON file containing a list of game configurations to run sequentially. Each entry should be a dict with CLI argument keys (e.g., {'algo': 'dqn', 'episodes': 100}).",
@@ -99,6 +104,9 @@ def apply_args_to_config(config, args_dict: dict) -> None:
         config.reward_model.mode = args_dict["mode"]
     if "phi" in args_dict and args_dict["phi"] is not None:
         config.reward_model.phi = args_dict["phi"]
+    
+    if "penalty" in args_dict and args_dict["penalty"] is not None:
+        config.env.penalty = bool(args_dict["penalty"])
 
 
 def run_single_game(args_dict: dict) -> None:
@@ -171,6 +179,7 @@ def generate_combinations(args: argparse.Namespace) -> List[dict]:
                         "no_reward_model": args.no_reward_model,
                         "mode": args.mode,
                         "phi": args.phi,
+                        "penalty": args.penalty,
                     }
                     combinations.append(combo)
     

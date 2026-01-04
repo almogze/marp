@@ -1,14 +1,15 @@
 {
-  "episodes": 200,
+  "episodes": 250,
   "seed": 0,
   "env": {
-    "map_type": "small",
+    "map_type": "medium",
     "num_agents": 5,
     "agent_view_range": 5,
     "ep_length": 600,
     "render": false,
     "spawn_speed": "slow",
-    "metric": "Efficiency"
+    "metric": "Efficiency",
+    "penalty": false
   },
   "algorithm": {
     "name": "mappo",
@@ -19,7 +20,7 @@
       "clip_range": 0.2,
       "ent_coef": 0.01,
       "vf_coef": 0.5,
-      "n_steps": 1024,
+      "n_steps": 2048,
       "batch_size": 256,
       "update_epochs": 4,
       "hidden_size": 256,

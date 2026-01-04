@@ -76,6 +76,12 @@ Random seed example:
 python scripts/run_env.py --algo dqn --episodes 100 --random-seed
 ```
 
+Penalty example (with penalty for FIRE action):
+
+```bash
+python scripts/run_env.py --algo mappo --episodes 250 --random-seed --no-reward-model --penalty
+```
+
 ### Running sequences of games
 
 You can run multiple games sequentially in several ways:
@@ -138,6 +144,7 @@ Arguments:
 - `--random-seed` uses a randomly generated seed for all games (overrides any `--seed` values). Each game will get a different random seed.
 - `--map NAME` sets `env.map_type`. Can specify multiple values to run sequentially.
 - `--agents N` sets `env.num_agents`. Can specify multiple values to run sequentially.
+- `--penalty` enables penalty for FIRE action (agents get -1 reward when using FIRE action). When disabled (default), FIRE action has no direct reward penalty.
 - `--reward-model` / `--no-reward-model` toggles reward modeling.
 - `--mode MODE` sets `reward_model.mode`.
 - `--phi PHI` sets `reward_model.phi`.

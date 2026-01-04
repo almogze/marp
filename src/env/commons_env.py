@@ -23,12 +23,13 @@ MAP = {"small": SMALL_HARVEST_MAP,
 class HarvestCommonsEnv(MapEnv):
 
     def __init__(self, ascii_map=HARVEST_MAP, num_agents=1, render=False, agent_view_range=HARVEST_DEFAULT_VIEW_SIZE,
-                 color_map=None, ep_length=600, spawn_speed='slow', metric="Efficiency"):
+                 color_map=None, ep_length=600, spawn_speed='slow', metric="Efficiency", penalty=False):
         self.ep_length = ep_length
         self.apple_points = []
         self.agent_view_range = agent_view_range
         self.spawn_speed = SPAWN_PROB_SLOW if spawn_speed=="slow" else SPAWN_PROB_FAST
         self.metric=metric
+        self.penalty = penalty
 
         super().__init__(ascii_map, num_agents, render, color_map=color_map)
 
@@ -75,6 +76,9 @@ class HarvestCommonsEnv(MapEnv):
             infos[agent_id]['r'] = rewards[agent_id]
             infos[agent_id]['fire'] = action[agent_id] == 7
             self.fire_counter += int(action[agent_id] == 7)
+            # Apply penalty for FIRE action if enabled
+            if self.penalty and action[agent_id] == 7:
+                rewards[agent_id] = -1
         self.update_social_metrics(rewards)
         return observations, rewards, dones, infos
 
