@@ -40,7 +40,8 @@
     "video_every_n_episodes": 100,
     "video_max_steps": 600,
     "video_fps": 10,
-    "video_keep_frames": false
+    "video_keep_frames": false,
+    "log_agent_episode_details": true
   },
   "reward_model": {
     "enabled": false,
