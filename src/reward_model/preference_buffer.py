@@ -1,7 +1,7 @@
 import random
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Dict, List, Sequence, Tuple
+from typing import Deque, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -12,9 +12,14 @@ class EpisodeRecord:
     metrics: Dict[str, float]
 
 
+# Default max steps for temporal subsampling (None = no limit)
+DEFAULT_MAX_STEPS: Optional[int] = 256
+
+
 class PreferenceBuffer:
-    def __init__(self, max_episodes: int):
+    def __init__(self, max_episodes: int, max_steps_per_sequence: Optional[int] = DEFAULT_MAX_STEPS):
         self._episodes: Deque[EpisodeRecord] = deque(maxlen=max_episodes)
+        self.max_steps_per_sequence = max_steps_per_sequence
 
     def add_episode(self, record: EpisodeRecord) -> None:
         self._episodes.append(record)
@@ -36,18 +41,38 @@ class PreferenceBuffer:
             pairs.append((episodes[i], episodes[j]))
         return pairs
 
-    def aggregate_episode(self, record: EpisodeRecord) -> List[Tuple[np.ndarray, int]]:
+    def _subsample(
+        self, sequence: List[Tuple[np.ndarray, int]], max_steps: Optional[int]
+    ) -> List[Tuple[np.ndarray, int]]:
+        """Subsample a sequence to at most max_steps using uniform spacing."""
+        if max_steps is None or len(sequence) <= max_steps:
+            return sequence
+        indices = np.linspace(0, len(sequence) - 1, max_steps, dtype=np.int64)
+        return [sequence[i] for i in indices]
+
+    def aggregate_episode(
+        self, record: EpisodeRecord, max_steps: Optional[int] = None
+    ) -> List[Tuple[np.ndarray, int]]:
+        """Aggregate all agent trajectories, optionally subsampling to max_steps."""
+        if max_steps is None:
+            max_steps = self.max_steps_per_sequence
         merged: List[Tuple[np.ndarray, int]] = []
         for agent_id in sorted(record.agent_trajs.keys()):
             merged.extend(record.agent_trajs.get(agent_id, []))
-        return merged
+        return self._subsample(merged, max_steps)
 
-    def sample_agent_trajectory(self, record: EpisodeRecord) -> List[Tuple[np.ndarray, int]]:
+    def sample_agent_trajectory(
+        self, record: EpisodeRecord, max_steps: Optional[int] = None
+    ) -> List[Tuple[np.ndarray, int]]:
+        """Sample a single agent's trajectory, optionally subsampling to max_steps."""
+        if max_steps is None:
+            max_steps = self.max_steps_per_sequence
         if not record.agent_trajs:
             return []
         agent_ids = list(record.agent_trajs.keys())
         agent_id = random.choice(agent_ids)
-        return record.agent_trajs.get(agent_id, [])
+        traj = record.agent_trajs.get(agent_id, [])
+        return self._subsample(traj, max_steps)
 
     def sample_narrow_view_pairs(
         self, batch_pairs: int

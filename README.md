@@ -199,17 +199,32 @@ Enable in config:
     "warmup_episodes": 50,
     "max_episodes_in_buffer": 5000,
     "device": "auto",
-    "save_every_episodes": 200
+    "save_every_episodes": 200,
+    "use_amp": true,
+    "chunk_size": 512,
+    "max_steps_per_sequence": 256
   }
 }
 ```
 
-**Mode options:**
-- `narrow_view`: Samples a single agent's trajectory for each episode comparison. Faster but noisier.
-- `input_aggregation`: Aggregates all agents' trajectories into one sequence. More comprehensive but computationally heavier.
+### Performance optimization options
 
-**Performance note:** The reward model training uses batched sequence scoring internally, which processes all trajectory pairs in a single forward pass. This is significantly faster than sequential processing, especially for `input_aggregation` mode where sequences are larger. Episode aggregations are also cached within each training step to avoid redundant computation when the same episode appears in multiple pairs.
-```
+The reward model training supports several performance optimizations for memory-constrained GPUs:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `use_amp` | `true` | Use mixed precision (FP16) training. Halves GPU memory usage and speeds up training on compatible GPUs. Automatically disabled on CPU. |
+| `chunk_size` | `512` | Maximum number of steps per forward pass chunk. Larger values are faster but use more memory. Reduce if encountering OOM errors. |
+| `max_steps_per_sequence` | `256` | Temporal subsampling limit. Limits the number of steps per trajectory using uniform spacing. Set to `null` to disable subsampling (process all steps). |
+
+**Memory usage tips:**
+- For 8GB GPU: Use defaults (`max_steps_per_sequence: 256`, `chunk_size: 512`, `use_amp: true`)
+- For 4GB GPU: Try `max_steps_per_sequence: 128`, `chunk_size: 256`
+- For larger GPUs: Increase `max_steps_per_sequence` to `512` or `null` for full precision
+
+**Mode comparison:**
+- `input_aggregation`: Aggregates trajectories from ALL agents (higher memory, captures global patterns)
+- `narrow_view`: Samples single agent trajectory per episode (lower memory, faster)
 
 Logging:
 - `reward_pred_*` tracks predicted rewards when RM is enabled.

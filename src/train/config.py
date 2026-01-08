@@ -135,6 +135,10 @@ class RewardModelConfig:
     max_episodes_in_buffer: int = 5000
     device: str = "auto"
     save_every_episodes: int = 200
+    # Performance optimization options
+    use_amp: bool = True  # Use mixed precision (FP16) for faster training
+    chunk_size: int = 512  # Max steps per forward pass chunk (memory control)
+    max_steps_per_sequence: Optional[int] = 256  # Temporal subsampling limit (None = no limit)
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "RewardModelConfig":
