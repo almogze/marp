@@ -11,6 +11,7 @@ Key pieces:
 - `src/env/commons_agent.py`: Agent behavior and action space.
 - `src/env/maps.py`: ASCII map layouts used for spawning walls/apples/agents.
 - `src/reward_model/`: MARP-style preference-based reward model and training utilities.
+- `src/train/metrics.py`: Agent-specific metrics calculation (nearby apples, cluster detection).
 
 ## Training (configurable trainer)
 
@@ -51,7 +52,8 @@ Run folders include a reward-model suffix, e.g. `...-rm=off` or `...-rm=narrow_v
 - `reward`: Reward received for this step
 - `predicted_reward`: Predicted reward for this step (only if reward model enabled)
 - `apple_eaten`: Boolean indicating whether an apple was consumed in the current step (True if reward > 0)
-- `nearby_apples`: Integer count of apples visible in the agent's view range
+- `nearby_apples`: Integer count of apples within 2 steps (Euclidean distance) from the agent's position. This metric only counts apples that are actually nearby, not all apples in the agent's full view range.
+- `ate_last_apple_in_cluster`: Boolean indicating whether the agent consumed the last remaining apple in a cluster (a resource that will not reproduce). This is True when an apple is eaten and no other apples remain within the spawn radius (APPLE_RADIUS=2) of the nearest apple spawn point.
 
 View TensorBoard (live during training):
 
@@ -200,6 +202,13 @@ Enable in config:
     "save_every_episodes": 200
   }
 }
+```
+
+**Mode options:**
+- `narrow_view`: Samples a single agent's trajectory for each episode comparison. Faster but noisier.
+- `input_aggregation`: Aggregates all agents' trajectories into one sequence. More comprehensive but computationally heavier.
+
+**Performance note:** The reward model training uses batched sequence scoring internally, which processes all trajectory pairs in a single forward pass. This is significantly faster than sequential processing, especially for `input_aggregation` mode where sequences are larger. Episode aggregations are also cached within each training step to avoid redundant computation when the same episode appears in multiple pairs.
 ```
 
 Logging:

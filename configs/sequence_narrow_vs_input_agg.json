@@ -1,0 +1,103 @@
+[
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "narrow_view",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "narrow_view",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "narrow_view",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "narrow_view",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "narrow_view",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "input_aggregation",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "input_aggregation",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "input_aggregation",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "input_aggregation",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  },
+  {
+    "algo": "mappo",
+    "episodes": 250,
+    "map_type": "medium",
+    "agents": 5,
+    "reward_model": true,
+    "mode": "input_aggregation",
+    "phi": "efficiency_x_peace",
+    "random_seed": true
+  }
+]
+

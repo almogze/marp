@@ -280,7 +280,7 @@ def _parse_csv_value(value: str, field: str) -> Any:
             return float(value)
         except ValueError:
             return None
-    if field == "apple_eaten":
+    if field in ("apple_eaten", "ate_last_apple_in_cluster"):
         # Handle boolean values (True/False, 1/0, etc.)
         value_lower = value.lower().strip()
         if value_lower in ("true", "1", "yes"):
@@ -628,7 +628,10 @@ def generate_agent_predicted_reward_plots(
 def generate_run_plots(run_dir: str, smooth_window: int, normalize: bool) -> Tuple[bool, bool]:
     metrics_path = os.path.join(run_dir, "metrics.jsonl")
     if not os.path.isfile(metrics_path):
-        raise FileNotFoundError(f"metrics.jsonl not found in {run_dir}")
+        # Try metrics.json as fallback (some runs use .json extension for JSONL format)
+        metrics_path = os.path.join(run_dir, "metrics.json")
+        if not os.path.isfile(metrics_path):
+            raise FileNotFoundError(f"metrics.jsonl or metrics.json not found in {run_dir}")
 
     algo_name, rm_phi = _load_run_context(run_dir)
     reward_title = f"Rewards (algo={algo_name})"

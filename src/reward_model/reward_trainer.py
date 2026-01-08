@@ -53,16 +53,16 @@ class RewardModelTrainer:
                 seen.add(id(ep_j))
         if len(episodes) < 2:
             return None
-        scores = []
-        phis = []
+        
+        # Batch compute all episode scores at once
+        seqs = [buffer.aggregate_episode(ep) for ep in episodes]
+        phis = [compute_phi(ep.metrics, phi_key) for ep in episodes]
+        
         self.reward_model.eval()
         with torch.no_grad():
-            for ep in episodes:
-                seq = buffer.aggregate_episode(ep)
-                score = self.reward_model.sequence_score(seq, device=self.device).item()
-                phi = compute_phi(ep.metrics, phi_key)
-                scores.append(score)
-                phis.append(phi)
+            scores_tensor = self.reward_model.batch_sequence_scores(seqs, device=self.device)
+            scores = scores_tensor.cpu().numpy()
+        
         scores_arr = np.array(scores, dtype=np.float32)
         phis_arr = np.array(phis, dtype=np.float32)
         if scores_arr.std() == 0 or phis_arr.std() == 0:
@@ -90,22 +90,39 @@ class RewardModelTrainer:
             if not pairs:
                 break
             last_pairs = pairs
-            scores_i = []
-            scores_j = []
+            
+            # Collect all sequences and metadata first (with caching for repeated episodes)
+            seqs_i = []
+            seqs_j = []
             mus = []
             deltas = []
+            episode_cache: Dict[int, List[Tuple[np.ndarray, int]]] = {}
+            
             for ep_i, ep_j in pairs:
                 phi_i = compute_phi(ep_i.metrics, phi_key)
                 phi_j = compute_phi(ep_j.metrics, phi_key)
                 mu, delta = preference(phi_i, phi_j)
-                seq_i, seq_j = self._pair_sequences(buffer, ep_i, ep_j, mode)
-                scores_i.append(self.reward_model.sequence_score(seq_i, device=self.device))
-                scores_j.append(self.reward_model.sequence_score(seq_j, device=self.device))
+                
+                # Cache aggregated episodes to avoid recomputation
+                ep_i_id = id(ep_i)
+                ep_j_id = id(ep_j)
+                if ep_i_id not in episode_cache:
+                    seq_i, _ = self._pair_sequences(buffer, ep_i, ep_j, mode)
+                    episode_cache[ep_i_id] = seq_i
+                if ep_j_id not in episode_cache:
+                    _, seq_j = self._pair_sequences(buffer, ep_i, ep_j, mode)
+                    episode_cache[ep_j_id] = seq_j
+                
+                seqs_i.append(episode_cache[ep_i_id])
+                seqs_j.append(episode_cache[ep_j_id])
                 mus.append(mu)
                 deltas.append(delta)
 
-            scores_i_t = torch.stack(scores_i)
-            scores_j_t = torch.stack(scores_j)
+            # Batch all sequences together for a single forward pass
+            all_seqs = seqs_i + seqs_j
+            all_scores = self.reward_model.batch_sequence_scores(all_seqs, device=self.device)
+            scores_i_t = all_scores[:len(seqs_i)]
+            scores_j_t = all_scores[len(seqs_i):]
             mu_t = torch.tensor(mus, dtype=torch.float32, device=self.device)
             delta_t = torch.tensor(deltas, dtype=torch.float32, device=self.device)
             weights = self._weights_from_deltas(delta_t)
