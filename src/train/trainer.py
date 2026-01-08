@@ -113,9 +113,18 @@ class Trainer:
             obs_shape = self.env.observation_space["curr_obs"].shape
             num_actions = int(self.env.action_space.n)
             reward_model = RewardModel(obs_shape=obs_shape, num_actions=num_actions)
-            rm_trainer = RewardModelTrainer(reward_model, lr=rm_cfg.lr, device=rm_cfg.device)
+            rm_trainer = RewardModelTrainer(
+                reward_model,
+                lr=rm_cfg.lr,
+                device=rm_cfg.device,
+                use_amp=rm_cfg.use_amp,
+                chunk_size=rm_cfg.chunk_size,
+            )
             reward_model = rm_trainer.reward_model
-            pref_buffer = PreferenceBuffer(rm_cfg.max_episodes_in_buffer)
+            pref_buffer = PreferenceBuffer(
+                rm_cfg.max_episodes_in_buffer,
+                max_steps_per_sequence=rm_cfg.max_steps_per_sequence,
+            )
 
         for episode in range(self.config.episodes):
             obs, infos = self.env.reset(seed=None)

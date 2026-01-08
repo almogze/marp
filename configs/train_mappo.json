@@ -5,7 +5,7 @@
     "map_type": "medium",
     "num_agents": 5,
     "agent_view_range": 5,
-    "ep_length": 900,
+    "ep_length": 600,
     "render": false,
     "spawn_speed": "slow",
     "metric": "Efficiency",
