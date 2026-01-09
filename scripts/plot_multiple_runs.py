@@ -310,11 +310,7 @@ def _plot_multiple_averaged_series(
     ax.spines['right'].set_visible(False)
     
     plt.tight_layout()
-    # Save as PNG
     plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
-    # Also save as PDF for publication
-    pdf_path = output_path.replace('.png', '.pdf')
-    plt.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close()
     return True
 
@@ -392,11 +388,7 @@ def _plot_social_subplots_averaged(
     
     fig.suptitle(title, fontweight='bold', y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    # Save as PNG
     fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
-    # Also save as PDF for publication
-    pdf_path = output_path.replace('.png', '.pdf')
-    fig.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
     return True
 
@@ -517,11 +509,7 @@ def _plot_normalized_per_agent_predicted_rewards(
     ax.spines['right'].set_visible(False)
     
     plt.tight_layout()
-    # Save as PNG
     plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
-    # Also save as PDF for publication
-    pdf_path = output_path.replace('.png', '.pdf')
-    plt.savefig(pdf_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close()
     return True
 
@@ -763,26 +751,17 @@ def main() -> int:
     )
     
     if rewards_plotted:
-        png_path = os.path.join(args.output_dir, 'rewards_averaged.png')
-        pdf_path = os.path.join(args.output_dir, 'rewards_averaged.pdf')
-        print(f"Saved averaged rewards plot to {png_path}")
-        print(f"Saved averaged rewards plot (PDF) to {pdf_path}")
+        print(f"Saved averaged rewards plot to {os.path.join(args.output_dir, 'rewards_averaged.png')}")
     else:
         print("No reward metrics found to plot.")
     
     if social_plotted:
-        png_path = os.path.join(args.output_dir, 'social_metrics_averaged.png')
-        pdf_path = os.path.join(args.output_dir, 'social_metrics_averaged.pdf')
-        print(f"Saved averaged social metrics plot to {png_path}")
-        print(f"Saved averaged social metrics plot (PDF) to {pdf_path}")
+        print(f"Saved averaged social metrics plot to {os.path.join(args.output_dir, 'social_metrics_averaged.png')}")
     else:
         print("No social metrics found to plot.")
     
     if agent_pred_plotted:
-        png_path = os.path.join(args.output_dir, 'agent_predicted_rewards_normalized.png')
-        pdf_path = os.path.join(args.output_dir, 'agent_predicted_rewards_normalized.pdf')
-        print(f"Saved normalized per-agent predicted rewards plot to {png_path}")
-        print(f"Saved normalized per-agent predicted rewards plot (PDF) to {pdf_path}")
+        print(f"Saved normalized per-agent predicted rewards plot to {os.path.join(args.output_dir, 'agent_predicted_rewards_normalized.png')}")
     else:
         print("No per-agent predicted reward metrics found to plot.")
     

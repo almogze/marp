@@ -119,7 +119,8 @@ class ResultLogger:
         
         # Build CSV fieldnames
         fieldnames = [
-            "episode", "step", "action", "reward", "apple_eaten", "nearby_apples"
+            "episode", "step", "action", "reward", "apple_eaten", "nearby_apples",
+            "ate_last_apple_in_cluster"
         ]
         # Check if any step has predicted_reward (step-level predicted reward)
         has_predicted_reward = any("predicted_reward" in step_info for step_info in steps_data)
@@ -159,6 +160,8 @@ class ResultLogger:
                     row[fieldname] = step_info.get("apple_eaten", "")
                 elif fieldname == "nearby_apples":
                     row[fieldname] = step_info.get("nearby_apples", "")
+                elif fieldname == "ate_last_apple_in_cluster":
+                    row[fieldname] = step_info.get("ate_last_apple_in_cluster", "")
             
             writer.writerow(row)
         

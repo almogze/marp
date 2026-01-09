@@ -265,9 +265,9 @@ python scripts/plot_multiple_runs.py logs/20251231-224618-mappo-map=small-agents
 ```
 
 Outputs:
-- `plots_averaged/rewards_averaged.png` and `.pdf` (or custom output directory)
-- `plots_averaged/social_metrics_averaged.png` and `.pdf`
-- `plots_averaged/agent_predicted_rewards_normalized.png` and `.pdf` (normalized per-agent predicted rewards)
+- `plots_averaged/rewards_averaged.png` (or custom output directory)
+- `plots_averaged/social_metrics_averaged.png`
+- `plots_averaged/agent_predicted_rewards_normalized.png` (normalized per-agent predicted rewards)
 
 Options:
 - `--output-dir DIR` or `-o DIR`: output directory for plots (default: `plots_averaged`).
@@ -281,7 +281,6 @@ The script computes mean and standard deviation across all runs for each episode
 - Serif fonts (Times New Roman) for professional appearance
 - Colorblind-friendly color palette
 - Clean styling with optimized spacing and grid
-- Both PNG and PDF formats (PDF recommended for publications)
 
 ## Running PPO with multiple agents
 
