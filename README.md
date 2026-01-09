@@ -282,6 +282,48 @@ The script computes mean and standard deviation across all runs for each episode
 - Colorblind-friendly color palette
 - Clean styling with optimized spacing and grid
 
+### Processing all sessions with cross-session comparisons
+
+Generate per-session averaged plots and cross-session comparison plots:
+
+```bash
+python scripts/process_all_sessions.py
+```
+
+This script processes all defined experiment sessions and generates:
+1. **Per-session plots**: Averaged metrics for each session
+2. **Cross-session comparisons**: Overlay plots, grid comparisons, and bar charts
+
+**CLI options:**
+
+```bash
+# Run everything (default)
+python scripts/process_all_sessions.py
+
+# Run ONLY cross-session comparisons (skip per-session plots)
+python scripts/process_all_sessions.py --comparisons-only
+
+# Run ONLY per-session plots (skip comparisons)
+python scripts/process_all_sessions.py --skip-comparisons
+```
+
+**Comparison outputs** (`logs/comparisons/`):
+- `by_approach/`: Compare approaches (narrow view vs input aggregation) for same social target
+  - `with_std/`: Same plots with standard deviation shading
+- `by_target/`: Compare social targets for same approach
+  - `with_std/`: Same plots with standard deviation shading
+- `all_sessions/`: All sessions overlaid + grid comparisons
+  - `with_std/`: Same plots with standard deviation shading
+- `summary_bars/`: Bar charts with final and average values
+  - `normalized/`: Same bar charts with values normalized to [0, 1] per metric for better cross-metric comparison
+
+**Session naming convention:**
+Sessions are automatically parsed from the format `"{approach} - {social_target}"`. New social targets are automatically integrated into comparisons by adding sessions following this naming convention.
+
+Example session names:
+- `"narrow view - efficiency"`
+- `"input aggregation - efficiency x peace"`
+
 ## Running PPO with multiple agents
 
 Set `env.num_agents` and keep `algorithm.ppo.multi_agent_mode` as `independent`. Each
