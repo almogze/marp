@@ -11,6 +11,7 @@ Key pieces:
 - `src/env/commons_agent.py`: Agent behavior and action space.
 - `src/env/maps.py`: ASCII map layouts used for spawning walls/apples/agents.
 - `src/reward_model/`: MARP-style preference-based reward model and training utilities.
+- `src/train/metrics.py`: Agent-specific metrics calculation (nearby apples, cluster detection).
 
 ## Training (configurable trainer)
 
@@ -51,7 +52,8 @@ Run folders include a reward-model suffix, e.g. `...-rm=off` or `...-rm=narrow_v
 - `reward`: Reward received for this step
 - `predicted_reward`: Predicted reward for this step (only if reward model enabled)
 - `apple_eaten`: Boolean indicating whether an apple was consumed in the current step (True if reward > 0)
-- `nearby_apples`: Integer count of apples visible in the agent's view range
+- `nearby_apples`: Integer count of apples within 2 steps (Euclidean distance) from the agent's position. This metric only counts apples that are actually nearby, not all apples in the agent's full view range.
+- `ate_last_apple_in_cluster`: Boolean indicating whether the agent consumed the last remaining apple in a cluster (a resource that will not reproduce). This is True when an apple is eaten and no other apples remain within the spawn radius (APPLE_RADIUS=2) of the nearest apple spawn point.
 
 View TensorBoard (live during training):
 
@@ -263,9 +265,9 @@ python scripts/plot_multiple_runs.py logs/20251231-224618-mappo-map=small-agents
 ```
 
 Outputs:
-- `plots_averaged/rewards_averaged.png` and `.pdf` (or custom output directory)
-- `plots_averaged/social_metrics_averaged.png` and `.pdf`
-- `plots_averaged/agent_predicted_rewards_normalized.png` and `.pdf` (normalized per-agent predicted rewards)
+- `plots_averaged/rewards_averaged.png` (or custom output directory)
+- `plots_averaged/social_metrics_averaged.png`
+- `plots_averaged/agent_predicted_rewards_normalized.png` (normalized per-agent predicted rewards)
 
 Options:
 - `--output-dir DIR` or `-o DIR`: output directory for plots (default: `plots_averaged`).
@@ -279,7 +281,6 @@ The script computes mean and standard deviation across all runs for each episode
 - Serif fonts (Times New Roman) for professional appearance
 - Colorblind-friendly color palette
 - Clean styling with optimized spacing and grid
-- Both PNG and PDF formats (PDF recommended for publications)
 
 ## Running PPO with multiple agents
 

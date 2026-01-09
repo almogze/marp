@@ -11,6 +11,7 @@ from .config import TrainerConfig, save_config
 from .logging_utils import ResultLogger
 from .registry import build_algorithm
 from .video_utils import VideoRecorder
+from .metrics import compute_agent_step_metrics
 
 
 class Trainer:
@@ -163,10 +164,15 @@ class Trainer:
                         # Check if an apple was eaten (reward > 0 indicates apple consumption)
                         apple_eaten = bool(rewards[agent_id] > 0)
                         
-                        # Count nearby apples in agent's view
+                        # Compute agent-specific metrics
                         agent = self.env.agents[agent_id]
-                        agent_view = agent.get_state()
-                        nearby_apples = int((agent_view == 'A').sum())
+                        metrics = compute_agent_step_metrics(
+                            agent=agent,
+                            env=self.env,
+                            reward=rewards[agent_id],
+                            apple_eaten=apple_eaten,
+                            nearby_radius=2
+                        )
                         
                         step_data = {
                             "step": step,
@@ -174,7 +180,8 @@ class Trainer:
                             "reward": float(rewards[agent_id]),
                             "done": bool(dones.get(agent_id, False)),
                             "apple_eaten": apple_eaten,
-                            "nearby_apples": nearby_apples,
+                            "nearby_apples": metrics["nearby_apples"],
+                            "ate_last_apple_in_cluster": metrics["ate_last_apple_in_cluster"],
                         }
                         if rm_cfg.enabled and pred_rewards is not None:
                             step_data["predicted_reward"] = float(pred_rewards[agent_id])

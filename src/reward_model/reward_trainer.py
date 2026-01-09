@@ -26,11 +26,11 @@ class RewardModelTrainer:
         self.device = torch.device(device)
         self.reward_model = reward_model.to(self.device)
         self.optimizer = torch.optim.Adam(self.reward_model.parameters(), lr=lr)
-        
+
         # Mixed precision training
         self.use_amp = use_amp and _AMP_AVAILABLE and self.device.type == "cuda"
         self.scaler = torch.amp.GradScaler("cuda") if self.use_amp else None
-        
+
         # Chunk size for batched processing
         self.chunk_size = chunk_size
 
@@ -71,11 +71,11 @@ class RewardModelTrainer:
                 seen.add(id(ep_j))
         if len(episodes) < 2:
             return None
-        
+
         # Batch score computation
         sequences = [buffer.aggregate_episode(ep) for ep in episodes]
         phis = [compute_phi(ep.metrics, phi_key) for ep in episodes]
-        
+
         self.reward_model.eval()
         with torch.no_grad():
             if self.use_amp:
@@ -88,7 +88,7 @@ class RewardModelTrainer:
                     sequences, device=self.device, chunk_size=self.chunk_size
                 )
             scores = scores_tensor.float().cpu().numpy()
-        
+
         phis_arr = np.array(phis, dtype=np.float32)
         if scores.std() == 0 or phis_arr.std() == 0:
             return None
@@ -115,13 +115,13 @@ class RewardModelTrainer:
             if not pairs:
                 break
             last_pairs = pairs
-            
+
             # Collect all sequences and metadata
             sequences_i = []
             sequences_j = []
             mus = []
             deltas = []
-            
+
             for ep_i, ep_j in pairs:
                 phi_i = compute_phi(ep_i.metrics, phi_key)
                 phi_j = compute_phi(ep_j.metrics, phi_key)
@@ -131,7 +131,7 @@ class RewardModelTrainer:
                 sequences_j.append(seq_j)
                 mus.append(mu)
                 deltas.append(delta)
-            
+
             # Batched scoring with optional mixed precision
             if self.use_amp:
                 with torch.amp.autocast("cuda"):
@@ -141,7 +141,7 @@ class RewardModelTrainer:
                     scores_j_t = self.reward_model.batch_sequence_scores(
                         sequences_j, device=self.device, chunk_size=self.chunk_size
                     )
-                
+
                 # Compute loss outside autocast for numerical stability
                 scores_i_t = scores_i_t.float()
                 scores_j_t = scores_j_t.float()
@@ -151,7 +151,7 @@ class RewardModelTrainer:
                 prob = torch.sigmoid(scores_i_t - scores_j_t)
                 bce = F.binary_cross_entropy(prob, mu_t, reduction="none")
                 loss = (bce * weights).sum() / (weights.sum() + 1e-8)
-                
+
                 self.optimizer.zero_grad()
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
@@ -163,14 +163,14 @@ class RewardModelTrainer:
                 scores_j_t = self.reward_model.batch_sequence_scores(
                     sequences_j, device=self.device, chunk_size=self.chunk_size
                 )
-                
+
                 mu_t = torch.tensor(mus, dtype=torch.float32, device=self.device)
                 delta_t = torch.tensor(deltas, dtype=torch.float32, device=self.device)
                 weights = self._weights_from_deltas(delta_t)
                 prob = torch.sigmoid(scores_i_t - scores_j_t)
                 bce = F.binary_cross_entropy(prob, mu_t, reduction="none")
                 loss = (bce * weights).sum() / (weights.sum() + 1e-8)
-                
+
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
