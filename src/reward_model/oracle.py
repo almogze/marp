@@ -10,6 +10,12 @@ def compute_phi(metrics: Dict[str, float], phi_key: str) -> float:
         return (
             float(metrics["efficiency"]) * float(metrics["peace"]) * float(metrics["equality"])
         )
+    if phi_key == "efficiency_x_equality":
+        return float(metrics["efficiency"]) * float(metrics["equality"])
+    if phi_key == "efficiency_x_sustainability":
+        return float(metrics["efficiency"]) * float(metrics["sustainability"])
+    if phi_key == "equality_x_peace":
+        return float(metrics["equality"]) * float(metrics["peace"])
     raise ValueError(f"Unsupported phi_key: {phi_key}")
 
 

@@ -207,6 +207,19 @@ Enable in config:
 }
 ```
 
+### Available phi functions
+
+The `phi` parameter determines how social metrics are combined into a single preference score:
+
+| Phi Key | Formula | Description |
+|---------|---------|-------------|
+| `efficiency` | efficiency | Maximize average reward per agent |
+| `efficiency_x_peace` | efficiency × peace | Balance resource collection with non-aggressive behavior |
+| `efficiency_x_equality` | efficiency × equality | Balance resource collection with fair distribution |
+| `efficiency_x_sustainability` | efficiency × sustainability | Balance resource collection with long-term resource availability |
+| `efficiency_x_peace_x_equality` | efficiency × peace × equality | Balance all three: collection, fairness, and non-aggression |
+| `equality_x_peace` | equality × peace | Promote fair distribution and non-aggressive behavior |
+
 ### Performance optimization options
 
 The reward model training supports several performance optimizations for memory-constrained GPUs:
@@ -250,6 +263,7 @@ Outputs:
 Options:
 - `--smooth N`: moving average window (episodes); also adds a faded ±1 std band.
 - `--normalize`: normalize each series to [0, 1] and plot social metrics on one graph.
+- `--no-title`: hide titles from all plots (useful for publication figures where titles are added in captions).
 
 ### Plotting multiple runs (averaged)
 
@@ -273,6 +287,7 @@ Options:
 - `--output-dir DIR` or `-o DIR`: output directory for plots (default: `plots_averaged`).
 - `--smooth N`: moving average window (episodes); use 1 to disable smoothing.
 - `--normalize`: normalize each metric series to [0, 1] and plot social metrics on one graph.
+- `--no-title`: hide titles from all plots (useful for publication figures where titles are added in captions).
 
 The script computes mean and standard deviation across all runs for each episode, with standard deviation shown as shaded regions around the mean.
 
@@ -291,7 +306,11 @@ python scripts/process_all_sessions.py
 ```
 
 This script processes all defined experiment sessions and generates:
-1. **Per-session plots**: Averaged metrics for each session
+1. **Per-session plots**: Averaged metrics for each session, including:
+   - Social metrics (efficiency, equality, sustainability, peace)
+   - Predicted rewards by condition (No apple eaten, Eat with 0/+4 apples nearby)
+   - Predicted rewards by granular condition (detailed breakdown by nearby apple count: 0, 1, 2, 3, +4)
+   - Predicted rewards by action (movement directions)
 2. **Cross-session comparisons**: Overlay plots, grid comparisons, and bar charts
 
 **CLI options:**
@@ -305,6 +324,9 @@ python scripts/process_all_sessions.py --comparisons-only
 
 # Run ONLY per-session plots (skip comparisons)
 python scripts/process_all_sessions.py --skip-comparisons
+
+# Generate plots without titles (useful for publication figures)
+python scripts/process_all_sessions.py --no-title
 ```
 
 **Comparison outputs** (`logs/comparisons/`):

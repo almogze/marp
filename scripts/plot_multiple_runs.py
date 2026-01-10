@@ -67,18 +67,17 @@ SOCIAL_ORDER = ("efficiency", "equality", "sustainability", "peace")
 def _format_label(label: str) -> str:
     """
     Format label for display:
-    - Convert 'efficiency_x_peace' to 'efficiency $\\times$ peace' (LaTeX math)
-    - Replace underscores with spaces in other cases
+    - Convert 'efficiency_x_peace' to 'Efficiency $\\times$ Peace' (LaTeX math with capitalization)
+    - Replace underscores with spaces and capitalize words in other cases
     """
     if '_x_' in label:
-        # Replace _x_ with \times for LaTeX math notation (wrapped in $ for math mode)
-        label = label.replace('_x_', r' $\times$ ')
-        # Remove remaining underscores
-        label = label.replace('_', ' ')
+        # Split by _x_, capitalize each part, and join with LaTeX \times
+        parts = label.split('_x_')
+        formatted_parts = [p.replace('_', ' ').title() for p in parts]
+        return r' $\times$ '.join(formatted_parts)
     else:
-        # Just replace underscores with spaces
-        label = label.replace('_', ' ')
-    return label
+        # Just replace underscores with spaces and capitalize
+        return label.replace('_', ' ').title()
 
 
 def _load_metrics(metrics_path: str) -> List[Dict[str, Any]]:
@@ -192,6 +191,7 @@ def _plot_averaged_series(
     ylabel: str,
     output_path: str,
     smooth_window: int = 1,
+    show_title: bool = True,
 ) -> bool:
     """Plot a single averaged metric series with standard deviation."""
     if len(episodes) == 0:
@@ -224,7 +224,8 @@ def _plot_averaged_series(
         elinewidth=1.5,
         alpha=0.7,
     )
-    plt.title(title)
+    if show_title:
+        plt.title(title)
     plt.xlabel("Episode")
     plt.ylabel(ylabel)
     plt.grid(True, linestyle="--", alpha=0.4)
@@ -252,6 +253,7 @@ def _plot_multiple_averaged_series(
     error_bar_step: int = 10,
     line_color: str = None,
     error_bar_color: str = None,
+    show_title: bool = True,
 ) -> bool:
     """Plot multiple averaged metric series on the same plot."""
     if not series_dict:
@@ -303,7 +305,8 @@ def _plot_multiple_averaged_series(
     
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel(ylabel, fontweight='normal')
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
     ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
     ax.spines['top'].set_visible(False)
@@ -321,6 +324,7 @@ def _plot_social_subplots_averaged(
     output_path: str,
     smooth_window: int = 1,
     error_bar_step: int = 10,
+    show_title: bool = True,
 ) -> bool:
     """Plot social metrics as subplots with averaged values (shaded area)."""
     ordered_names = [name for name in SOCIAL_ORDER if name in series_dict]
@@ -386,8 +390,11 @@ def _plot_social_subplots_averaged(
     else:
         axes_list[-1].set_xlabel("Episode", fontweight='normal')
     
-    fig.suptitle(title, fontweight='bold', y=0.995)
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    if show_title:
+        fig.suptitle(title, fontweight='bold', y=0.995)
+        fig.tight_layout(rect=(0, 0, 1, 0.97))
+    else:
+        fig.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
     return True
@@ -429,6 +436,7 @@ def _plot_normalized_per_agent_predicted_rewards(
     title: str,
     output_path: str,
     smooth_window: int = 1,
+    show_title: bool = True,
 ) -> bool:
     """
     Plot normalized per-agent predicted rewards on the same graph.
@@ -502,7 +510,8 @@ def _plot_normalized_per_agent_predicted_rewards(
     
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel("Normalized Predicted Reward", fontweight='normal')
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
     ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
     ax.spines['top'].set_visible(False)
@@ -539,6 +548,7 @@ def plot_multiple_runs(
     output_dir: str,
     smooth_window: int = 1,
     normalize: bool = False,
+    show_title: bool = True,
 ) -> Tuple[bool, bool, bool]:
     """
     Plot averaged metrics across multiple runs with standard deviation.
@@ -548,6 +558,7 @@ def plot_multiple_runs(
         output_dir: Directory to save plots
         smooth_window: Moving average window size
         normalize: Whether to normalize metrics to [0, 1]
+        show_title: Whether to show titles on plots
     
     Returns:
         Tuple of (rewards_plotted, social_plotted, agent_pred_plotted)
@@ -665,6 +676,7 @@ def plot_multiple_runs(
         output_path=rewards_path,
         smooth_window=smooth_window,
         error_bar_step=10,
+        show_title=show_title,
     )
     
     # Plot social metrics
@@ -679,6 +691,7 @@ def plot_multiple_runs(
             error_bar_step=10,
             line_color=None,  # Use default blue color
             error_bar_color='black',
+            show_title=show_title,
         )
     else:
         # Filter to only ordered social metrics
@@ -695,6 +708,7 @@ def plot_multiple_runs(
             output_path=social_path,
             smooth_window=smooth_window,
             error_bar_step=10,
+            show_title=show_title,
         )
     
     # Plot normalized per-agent predicted rewards
@@ -709,6 +723,7 @@ def plot_multiple_runs(
         title=agent_pred_title,
         output_path=agent_pred_path,
         smooth_window=smooth_window,
+        show_title=show_title,
     )
     
     return rewards_plotted, social_plotted, agent_pred_plotted
@@ -741,13 +756,21 @@ def main() -> int:
         action="store_true",
         help="Normalize each metric series to [0, 1] and plot social metrics on one graph.",
     )
+    parser.add_argument(
+        "--no-title",
+        action="store_true",
+        help="Hide titles from all plots.",
+    )
     args = parser.parse_args()
+    
+    show_title = not args.no_title
     
     rewards_plotted, social_plotted, agent_pred_plotted = plot_multiple_runs(
         args.run_dirs,
         output_dir=args.output_dir,
         smooth_window=args.smooth,
         normalize=args.normalize,
+        show_title=show_title,
     )
     
     if rewards_plotted:

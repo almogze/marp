@@ -334,6 +334,94 @@ def _extract_predicted_reward_by_condition_for_run(
     return series
 
 
+def _extract_predicted_reward_by_granular_condition_for_run(
+    run_dir: str
+) -> Dict[str, List[Tuple[int, float]]]:
+    """
+    Extract predicted reward series by granular condition for a run.
+    Averages across all agents in the run.
+    
+    Conditions:
+    - no_apple_eaten: when apple_eaten is False
+    - eat_0_nearby: apple eaten with 0 apples nearby
+    - eat_1_nearby: apple eaten with 1 apple nearby
+    - eat_2_nearby: apple eaten with 2 apples nearby
+    - eat_3_nearby: apple eaten with 3 apples nearby
+    - eat_4plus_nearby: apple eaten with 4+ apples nearby
+    
+    Returns dict with condition names as keys, values as list of (episode, avg_reward) tuples.
+    """
+    extended_info_dir = os.path.join(run_dir, "extended_info")
+    if not os.path.isdir(extended_info_dir):
+        return {}
+    
+    # Find all agent CSV files
+    agent_files = []
+    for filename in os.listdir(extended_info_dir):
+        if filename.startswith("agent_") and filename.endswith("_episodes.csv"):
+            agent_files.append(os.path.join(extended_info_dir, filename))
+    
+    if not agent_files:
+        return {}
+    
+    # Aggregate data across all agents
+    # Structure: {episode: {condition: [list of predicted rewards]}}
+    condition_keys = [
+        "no_apple_eaten",
+        "eat_0_nearby",
+        "eat_1_nearby",
+        "eat_2_nearby",
+        "eat_3_nearby",
+        "eat_4plus_nearby",
+    ]
+    episodes_data: Dict[int, Dict[str, List[float]]] = {}
+    
+    for agent_csv_path in agent_files:
+        rows = _load_agent_csv(agent_csv_path)
+        
+        for row in rows:
+            episode = _parse_csv_value(row.get("episode", ""), "episode")
+            if episode is None:
+                continue
+            
+            predicted_reward = _parse_csv_value(row.get("predicted_reward", ""), "predicted_reward")
+            if predicted_reward is None:
+                continue
+            
+            apple_eaten = _parse_csv_value(row.get("apple_eaten", ""), "apple_eaten")
+            nearby_apples = _parse_csv_value(row.get("nearby_apples", ""), "nearby_apples")
+            
+            if episode not in episodes_data:
+                episodes_data[episode] = {key: [] for key in condition_keys}
+            
+            if apple_eaten is False:
+                episodes_data[episode]["no_apple_eaten"].append(predicted_reward)
+            elif apple_eaten is True and nearby_apples is not None:
+                # Apple was eaten - categorize by nearby apples count
+                if nearby_apples == 0:
+                    episodes_data[episode]["eat_0_nearby"].append(predicted_reward)
+                elif nearby_apples == 1:
+                    episodes_data[episode]["eat_1_nearby"].append(predicted_reward)
+                elif nearby_apples == 2:
+                    episodes_data[episode]["eat_2_nearby"].append(predicted_reward)
+                elif nearby_apples == 3:
+                    episodes_data[episode]["eat_3_nearby"].append(predicted_reward)
+                elif nearby_apples >= 4:
+                    episodes_data[episode]["eat_4plus_nearby"].append(predicted_reward)
+    
+    # Compute average per episode per condition
+    series = {key: [] for key in condition_keys}
+    
+    for episode in sorted(episodes_data.keys()):
+        for condition in series.keys():
+            values = episodes_data[episode][condition]
+            if values:
+                mean = sum(values) / len(values)
+                series[condition].append((episode, mean))
+    
+    return series
+
+
 def _extract_predicted_reward_by_action_for_run(
     run_dir: str
 ) -> Dict[str, List[Tuple[int, float]]]:
@@ -400,6 +488,7 @@ def _plot_individual_social_metric_all_runs(
     metric_name: str,
     title: str,
     output_path: str,
+    show_title: bool = True,
 ) -> bool:
     """
     Plot a single social metric showing all runs individually (not averaged).
@@ -409,13 +498,14 @@ def _plot_individual_social_metric_all_runs(
         metric_name: which metric to plot
         title: plot title
         output_path: where to save
+        show_title: whether to show the title
     """
     fig, ax = plt.subplots(figsize=(6, 4))
     
     color_cycle = iter(PUBLICATION_COLORS)
     plotted = False
     
-    for run_name, series_dict in all_runs_series.items():
+    for run_idx, (run_name, series_dict) in enumerate(all_runs_series.items(), start=1):
         if metric_name not in series_dict:
             continue
         points = series_dict[metric_name]
@@ -426,9 +516,8 @@ def _plot_individual_social_metric_all_runs(
         values = [val for _, val in points]
         
         color = next(color_cycle)
-        # Extract seed from run name for shorter label
-        label = run_name.split("seed=")[-1] if "seed=" in run_name else run_name[-10:]
-        ax.plot(episodes, values, label=f"Run {label}", color=color, linewidth=1.5, alpha=0.8)
+        # Use run number instead of seed
+        ax.plot(episodes, values, label=f"Run #{run_idx}", color=color, linewidth=1.5, alpha=0.8)
         plotted = True
     
     if not plotted:
@@ -437,7 +526,8 @@ def _plot_individual_social_metric_all_runs(
     
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel(metric_name.capitalize(), fontweight='normal')
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
     ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9, fontsize=8)
     ax.spines['top'].set_visible(False)
@@ -456,6 +546,7 @@ def _plot_predicted_reward_all_runs(
     title: str,
     output_path: str,
     show_std: bool = True,
+    show_title: bool = True,
 ) -> bool:
     """
     Plot predicted reward for all runs, one line per category (condition or action).
@@ -468,6 +559,7 @@ def _plot_predicted_reward_all_runs(
         title: plot title
         output_path: where to save
         show_std: whether to show standard deviation shading
+        show_title: whether to show the title
     """
     # First, align all runs and compute mean per category
     # Get all episodes across all runs
@@ -535,7 +627,8 @@ def _plot_predicted_reward_all_runs(
     
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel("Average Predicted Reward", fontweight='normal')
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
     ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
     ax.spines['top'].set_visible(False)
@@ -715,8 +808,14 @@ def _format_approach_label(approach: str) -> str:
 
 
 def _format_target_label(target: str) -> str:
-    """Format social target name for display."""
-    return target.replace("_", " ").title()
+    """Format social target name for display with LaTeX support."""
+    if '_x_' in target:
+        # Split by _x_, capitalize each part, and join with LaTeX \times
+        parts = target.split('_x_')
+        formatted_parts = [p.replace('_', ' ').title() for p in parts]
+        return r' $\times$ '.join(formatted_parts)
+    else:
+        return target.replace("_", " ").title()
 
 
 def plot_overlay_comparison(
@@ -725,6 +824,7 @@ def plot_overlay_comparison(
     ylabel: str,
     output_path: str,
     sessions_std: Optional[Dict[str, List[Tuple[int, float]]]] = None,
+    show_title: bool = True,
 ) -> bool:
     """
     Create overlay plot with multiple sessions on same axes.
@@ -735,6 +835,7 @@ def plot_overlay_comparison(
         ylabel: y-axis label
         output_path: where to save
         sessions_std: optional {session_label: [(episode, std_value), ...]} for shading
+        show_title: whether to show the title
     """
     if not sessions_data:
         return False
@@ -770,7 +871,8 @@ def plot_overlay_comparison(
     
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel(ylabel, fontweight='normal')
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
     ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
     ax.spines['top'].set_visible(False)
@@ -787,6 +889,7 @@ def plot_grid_comparison(
     metric_name: str,
     title: str,
     output_path: str,
+    show_title: bool = True,
 ) -> bool:
     """
     Create grid of subplots, one per session.
@@ -796,6 +899,7 @@ def plot_grid_comparison(
         metric_name: which metric to plot
         title: overall figure title
         output_path: where to save
+        show_title: whether to show the title
     """
     sessions = list(sessions_data.keys())
     n_sessions = len(sessions)
@@ -853,7 +957,8 @@ def plot_grid_comparison(
         plt.close()
         return False
     
-    fig.suptitle(title, fontsize=14, fontweight='bold', y=1.02)
+    if show_title:
+        fig.suptitle(title, fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close()
@@ -869,6 +974,7 @@ def plot_bar_comparison(
     show_error: bool = True,
     error_data: Optional[Dict[str, Dict[str, float]]] = None,
     normalize: bool = False,
+    show_title: bool = True,
 ) -> bool:
     """
     Create grouped bar chart comparing sessions.
@@ -882,6 +988,7 @@ def plot_bar_comparison(
         show_error: whether to show error bars
         error_data: {session_label: {metric: std_value}} for error bars
         normalize: if True, normalize each metric to [0, 1] across sessions
+        show_title: whether to show the title
     """
     if not sessions_stats:
         return False
@@ -962,7 +1069,8 @@ def plot_bar_comparison(
         ax.set_xticklabels([m.capitalize() for m in metrics], fontsize=10)
     
     ax.set_ylabel("Value", fontweight='normal')
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9, fontsize=9)
     ax.grid(True, axis='y', linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
     ax.spines['top'].set_visible(False)
@@ -974,7 +1082,7 @@ def plot_bar_comparison(
     return True
 
 
-def generate_all_comparisons(base_dir: str) -> None:
+def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
     """
     Generate all cross-session comparison plots.
     
@@ -1060,7 +1168,8 @@ def generate_all_comparisons(base_dir: str) -> None:
                 )
                 title = f"{metric_name.capitalize()} - {_format_approach_label(approach)}"
                 plotted = plot_overlay_comparison(
-                    sessions_data, title, metric_name.capitalize(), output_path
+                    sessions_data, title, metric_name.capitalize(), output_path,
+                    show_title=show_title
                 )
                 if plotted:
                     print(f"  [OK] {approach} - {metric_name}")
@@ -1072,7 +1181,7 @@ def generate_all_comparisons(base_dir: str) -> None:
                 )
                 plotted_std = plot_overlay_comparison(
                     sessions_data, title, metric_name.capitalize(), output_path_std,
-                    sessions_std=sessions_std
+                    sessions_std=sessions_std, show_title=show_title
                 )
                 if plotted_std:
                     print(f"  [OK] {approach} - {metric_name} (with std)")
@@ -1089,7 +1198,8 @@ def generate_all_comparisons(base_dir: str) -> None:
         if sessions_data:
             output_path = os.path.join(by_target_dir, f"compare_{approach}_rewards.png")
             title = f"Episode Rewards - {_format_approach_label(approach)}"
-            plotted = plot_overlay_comparison(sessions_data, title, "Mean Reward", output_path)
+            plotted = plot_overlay_comparison(sessions_data, title, "Mean Reward", output_path,
+                                              show_title=show_title)
             if plotted:
                 print(f"  [OK] {approach} - rewards")
     
@@ -1121,7 +1231,8 @@ def generate_all_comparisons(base_dir: str) -> None:
                 )
                 title = f"{metric_name.capitalize()} - {_format_target_label(target)}"
                 plotted = plot_overlay_comparison(
-                    sessions_data, title, metric_name.capitalize(), output_path
+                    sessions_data, title, metric_name.capitalize(), output_path,
+                    show_title=show_title
                 )
                 if plotted:
                     print(f"  [OK] {target} - {metric_name}")
@@ -1133,7 +1244,7 @@ def generate_all_comparisons(base_dir: str) -> None:
                 )
                 plotted_std = plot_overlay_comparison(
                     sessions_data, title, metric_name.capitalize(), output_path_std,
-                    sessions_std=sessions_std
+                    sessions_std=sessions_std, show_title=show_title
                 )
                 if plotted_std:
                     print(f"  [OK] {target} - {metric_name} (with std)")
@@ -1150,7 +1261,8 @@ def generate_all_comparisons(base_dir: str) -> None:
         if sessions_data:
             output_path = os.path.join(by_approach_dir, f"compare_{target}_rewards.png")
             title = f"Episode Rewards - {_format_target_label(target)}"
-            plotted = plot_overlay_comparison(sessions_data, title, "Mean Reward", output_path)
+            plotted = plot_overlay_comparison(sessions_data, title, "Mean Reward", output_path,
+                                              show_title=show_title)
             if plotted:
                 print(f"  [OK] {target} - rewards")
     
@@ -1177,7 +1289,8 @@ def generate_all_comparisons(base_dir: str) -> None:
             output_path = os.path.join(all_sessions_dir, f"compare_all_{metric_name}.png")
             title = f"{metric_name.capitalize()} - All Sessions"
             plotted = plot_overlay_comparison(
-                sessions_data, title, metric_name.capitalize(), output_path
+                sessions_data, title, metric_name.capitalize(), output_path,
+                show_title=show_title
             )
             if plotted:
                 print(f"  [OK] all sessions - {metric_name}")
@@ -1186,7 +1299,7 @@ def generate_all_comparisons(base_dir: str) -> None:
             output_path_std = os.path.join(all_sessions_std_dir, f"compare_all_{metric_name}.png")
             plotted_std = plot_overlay_comparison(
                 sessions_data, title, metric_name.capitalize(), output_path_std,
-                sessions_std=sessions_std
+                sessions_std=sessions_std, show_title=show_title
             )
             if plotted_std:
                 print(f"  [OK] all sessions - {metric_name} (with std)")
@@ -1203,7 +1316,8 @@ def generate_all_comparisons(base_dir: str) -> None:
     if sessions_data:
         output_path = os.path.join(all_sessions_dir, "compare_all_rewards.png")
         plotted = plot_overlay_comparison(
-            sessions_data, "Episode Rewards - All Sessions", "Mean Reward", output_path
+            sessions_data, "Episode Rewards - All Sessions", "Mean Reward", output_path,
+            show_title=show_title
         )
         if plotted:
             print(f"  [OK] all sessions - rewards")
@@ -1216,7 +1330,8 @@ def generate_all_comparisons(base_dir: str) -> None:
     for metric_name in SOCIAL_ORDER:
         output_path = os.path.join(all_sessions_dir, f"grid_{metric_name}.png")
         title = f"{metric_name.capitalize()} Comparison"
-        plotted = plot_grid_comparison(all_social_data, metric_name, title, output_path)
+        plotted = plot_grid_comparison(all_social_data, metric_name, title, output_path,
+                                       show_title=show_title)
         if plotted:
             print(f"  [OK] grid - {metric_name}")
     
@@ -1249,7 +1364,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         final_stats, list(SOCIAL_ORDER), 
         "Final Episode Values", output_path,
-        group_by="metric", show_error=False
+        group_by="metric", show_error=False, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - final values by metric")
@@ -1259,7 +1374,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         avg_stats, list(SOCIAL_ORDER),
         "Average Values Across Episodes", output_path,
-        group_by="metric", show_error=True, error_data=std_stats
+        group_by="metric", show_error=True, error_data=std_stats, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - average values by metric")
@@ -1269,7 +1384,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         final_stats, list(SOCIAL_ORDER),
         "Final Episode Values", output_path,
-        group_by="session", show_error=False
+        group_by="session", show_error=False, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - final values by session")
@@ -1279,7 +1394,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         avg_stats, list(SOCIAL_ORDER),
         "Average Values Across Episodes", output_path,
-        group_by="session", show_error=True, error_data=std_stats
+        group_by="session", show_error=True, error_data=std_stats, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - average values by session")
@@ -1294,7 +1409,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         final_stats, list(SOCIAL_ORDER), 
         "Final Episode Values (Normalized)", output_path,
-        group_by="metric", show_error=False, normalize=True
+        group_by="metric", show_error=False, normalize=True, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - final values by metric (normalized)")
@@ -1304,7 +1419,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         avg_stats, list(SOCIAL_ORDER),
         "Average Values Across Episodes (Normalized)", output_path,
-        group_by="metric", show_error=True, error_data=std_stats, normalize=True
+        group_by="metric", show_error=True, error_data=std_stats, normalize=True, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - average values by metric (normalized)")
@@ -1314,7 +1429,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         final_stats, list(SOCIAL_ORDER),
         "Final Episode Values (Normalized)", output_path,
-        group_by="session", show_error=False, normalize=True
+        group_by="session", show_error=False, normalize=True, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - final values by session (normalized)")
@@ -1324,7 +1439,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     plotted = plot_bar_comparison(
         avg_stats, list(SOCIAL_ORDER),
         "Average Values Across Episodes (Normalized)", output_path,
-        group_by="session", show_error=True, error_data=std_stats, normalize=True
+        group_by="session", show_error=True, error_data=std_stats, normalize=True, show_title=show_title
     )
     if plotted:
         print(f"  [OK] bar - average values by session (normalized)")
@@ -1346,7 +1461,7 @@ def generate_all_comparisons(base_dir: str) -> None:
         plotted = plot_bar_comparison(
             metric_final, ["value"],
             f"Final {metric_name.capitalize()} Value", output_path,
-            group_by="session", show_error=False
+            group_by="session", show_error=False, show_title=show_title
         )
         if plotted:
             print(f"  [OK] bar - final {metric_name}")
@@ -1355,7 +1470,7 @@ def generate_all_comparisons(base_dir: str) -> None:
         plotted = plot_bar_comparison(
             metric_avg, ["value"],
             f"Average {metric_name.capitalize()} Value", output_path,
-            group_by="session", show_error=True, error_data=metric_std
+            group_by="session", show_error=True, error_data=metric_std, show_title=show_title
         )
         if plotted:
             print(f"  [OK] bar - average {metric_name}")
@@ -1372,7 +1487,7 @@ def generate_all_comparisons(base_dir: str) -> None:
     print(f"    - Normalized: {summary_bars_normalized_dir}")
 
 
-def process_session(session_name: str, run_dirs: list, base_dir: str):
+def process_session(session_name: str, run_dirs: list, base_dir: str, show_title: bool = True):
     """Process a single session."""
     print(f"\n{'='*80}")
     print(f"Processing session: {session_name}")
@@ -1393,6 +1508,7 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
             output_dir=session_output_dir,
             smooth_window=1,
             normalize=False,
+            show_title=show_title,
         )
         
         if rewards_plotted:
@@ -1407,6 +1523,7 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
     # Load data from all runs
     all_runs_social: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
     all_runs_condition: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
+    all_runs_granular_condition: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
     all_runs_action: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
     
     for run_dir in abs_run_dirs:
@@ -1424,6 +1541,11 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
         if condition_series:
             all_runs_condition[run_name] = condition_series
         
+        # Load predicted rewards by granular condition
+        granular_condition_series = _extract_predicted_reward_by_granular_condition_for_run(run_dir)
+        if granular_condition_series:
+            all_runs_granular_condition[run_name] = granular_condition_series
+        
         # Load predicted rewards by action
         action_series = _extract_predicted_reward_by_action_for_run(run_dir)
         if action_series:
@@ -1436,7 +1558,7 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
         title = f"{metric_name.capitalize()} - All Runs ({_format_label(session_name)})"
         
         plotted = _plot_individual_social_metric_all_runs(
-            all_runs_social, metric_name, title, output_path
+            all_runs_social, metric_name, title, output_path, show_title=show_title
         )
         
         if plotted:
@@ -1449,15 +1571,15 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
     condition_categories = ["no_apple_eaten", "zero_apples_nearby", "four_plus_apples_nearby"]
     condition_labels = {
         "no_apple_eaten": "No apple eaten",
-        "zero_apples_nearby": "0 apples nearby",
-        "four_plus_apples_nearby": "4+ apples nearby",
+        "zero_apples_nearby": "Eat, 0 apples nearby",
+        "four_plus_apples_nearby": "Eat, +4 apples nearby",
     }
     
     # With std
     output_path = os.path.join(session_output_dir, "predicted_reward_by_condition_with_std.png")
     title = f"Predicted Reward by Condition ({_format_label(session_name)})"
     plotted = _plot_predicted_reward_all_runs(
-        all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=True
+        all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=True, show_title=show_title
     )
     if plotted:
         print(f"  [OK] Saved predicted reward by condition (with std)")
@@ -1465,7 +1587,7 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
     # Without std
     output_path = os.path.join(session_output_dir, "predicted_reward_by_condition_no_std.png")
     plotted = _plot_predicted_reward_all_runs(
-        all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=False
+        all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=False, show_title=show_title
     )
     if plotted:
         print(f"  [OK] Saved predicted reward by condition (no std)")
@@ -1486,7 +1608,7 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
     output_path = os.path.join(session_output_dir, "predicted_reward_by_action_with_std.png")
     title = f"Predicted Reward by Action ({_format_label(session_name)})"
     plotted = _plot_predicted_reward_all_runs(
-        all_runs_action, action_categories, action_labels, title, output_path, show_std=True
+        all_runs_action, action_categories, action_labels, title, output_path, show_std=True, show_title=show_title
     )
     if plotted:
         print(f"  [OK] Saved predicted reward by action (with std)")
@@ -1494,12 +1616,50 @@ def process_session(session_name: str, run_dirs: list, base_dir: str):
     # Without std
     output_path = os.path.join(session_output_dir, "predicted_reward_by_action_no_std.png")
     plotted = _plot_predicted_reward_all_runs(
-        all_runs_action, action_categories, action_labels, title, output_path, show_std=False
+        all_runs_action, action_categories, action_labels, title, output_path, show_std=False, show_title=show_title
     )
     if plotted:
         print(f"  [OK] Saved predicted reward by action (no std)")
     else:
         print(f"  [--] No action data found")
+    
+    # 5. Plot predicted reward by granular condition (averaged across all runs)
+    print(f"\n[5] Generating predicted reward by granular condition plots")
+    granular_categories = [
+        "no_apple_eaten",
+        "eat_0_nearby",
+        "eat_1_nearby",
+        "eat_2_nearby",
+        "eat_3_nearby",
+        "eat_4plus_nearby",
+    ]
+    granular_labels = {
+        "no_apple_eaten": "No apple eaten",
+        "eat_0_nearby": "Eat, 0 apples nearby",
+        "eat_1_nearby": "Eat, 1 apple nearby",
+        "eat_2_nearby": "Eat, 2 apples nearby",
+        "eat_3_nearby": "Eat, 3 apples nearby",
+        "eat_4plus_nearby": "Eat, +4 apples nearby",
+    }
+    
+    # With std
+    output_path = os.path.join(session_output_dir, "predicted_reward_by_granular_condition_with_std.png")
+    title = f"Predicted Reward by Granular Condition ({_format_label(session_name)})"
+    plotted = _plot_predicted_reward_all_runs(
+        all_runs_granular_condition, granular_categories, granular_labels, title, output_path, show_std=True, show_title=show_title
+    )
+    if plotted:
+        print(f"  [OK] Saved predicted reward by granular condition (with std)")
+    
+    # Without std
+    output_path = os.path.join(session_output_dir, "predicted_reward_by_granular_condition_no_std.png")
+    plotted = _plot_predicted_reward_all_runs(
+        all_runs_granular_condition, granular_categories, granular_labels, title, output_path, show_std=False, show_title=show_title
+    )
+    if plotted:
+        print(f"  [OK] Saved predicted reward by granular condition (no std)")
+    else:
+        print(f"  [--] No granular condition data found")
 
 
 def parse_args() -> argparse.Namespace:
@@ -1517,6 +1677,9 @@ Examples:
 
   # Run ONLY per-session plots (skip comparisons)
   python scripts/process_all_sessions.py --skip-comparisons
+
+  # Generate plots without titles
+  python scripts/process_all_sessions.py --no-title
         """
     )
     
@@ -1530,6 +1693,12 @@ Examples:
         "--skip-comparisons",
         action="store_true",
         help="Skip cross-session comparison plots (only generate per-session plots)"
+    )
+    
+    parser.add_argument(
+        "--no-title",
+        action="store_true",
+        help="Hide titles from all plots."
     )
     
     args = parser.parse_args()
@@ -1547,11 +1716,15 @@ def main():
     # Get the base directory (project root)
     base_dir = os.path.dirname(script_dir)
     
+    # Determine show_title from arguments
+    show_title = not args.no_title
+    
     print("=" * 80)
     print("Processing all experiment sessions")
     print("=" * 80)
     print(f"Base directory: {base_dir}")
     print(f"Number of sessions: {len(SESSIONS)}")
+    print(f"Show titles: {show_title}")
     
     if args.comparisons_only:
         print("\nMode: Comparisons only (skipping per-session plots)")
@@ -1563,7 +1736,7 @@ def main():
     # Process individual sessions (unless --comparisons-only)
     if not args.comparisons_only:
         for session_name, run_dirs in SESSIONS.items():
-            process_session(session_name, run_dirs, base_dir)
+            process_session(session_name, run_dirs, base_dir, show_title=show_title)
         
         print("\n" + "=" * 80)
         print("Per-session processing complete!")
@@ -1582,7 +1755,7 @@ def main():
     
     # Generate cross-session comparisons (unless --skip-comparisons)
     if not args.skip_comparisons:
-        generate_all_comparisons(base_dir)
+        generate_all_comparisons(base_dir, show_title=show_title)
     
     print("\n" + "=" * 80)
     print("All processing complete!")

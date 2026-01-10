@@ -125,6 +125,7 @@ def _plot_series(
     ylabel: str,
     output_path: str,
     smooth_window: int,
+    show_title: bool = True,
 ) -> bool:
     if not series:
         return False
@@ -148,7 +149,8 @@ def _plot_series(
     if not plotted:
         plt.close()
         return False
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel(ylabel, fontweight='normal')
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
@@ -202,6 +204,7 @@ def _plot_social_subplots(
     title: str,
     output_path: str,
     smooth_window: int,
+    show_title: bool = True,
 ) -> bool:
     ordered_names = [name for name in SOCIAL_ORDER if series.get(name)]
     if not ordered_names:
@@ -244,8 +247,11 @@ def _plot_social_subplots(
             ax.set_xlabel("Episode", fontweight='normal')
     else:
         axes_list[-1].set_xlabel("Episode", fontweight='normal')
-    fig.suptitle(title, fontweight='bold', y=0.995)
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    if show_title:
+        fig.suptitle(title, fontweight='bold', y=0.995)
+        fig.tight_layout(rect=(0, 0, 1, 0.97))
+    else:
+        fig.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
     return True
@@ -365,6 +371,7 @@ def _plot_agent_predicted_rewards(
     title: str,
     output_path: str,
     smooth_window: int,
+    show_title: bool = True,
 ) -> bool:
     """Plot predicted reward series for an agent with three conditions."""
     if not series or not any(series.values()):
@@ -375,8 +382,8 @@ def _plot_agent_predicted_rewards(
     
     condition_labels = {
         "no_apple_eaten": "No apple eaten",
-        "zero_apples_nearby": "0 apples nearby",
-        "four_plus_apples_nearby": "4+ apples nearby",
+        "zero_apples_nearby": "Eat, 0 apples nearby",
+        "four_plus_apples_nearby": "Eat, +4 apples nearby",
     }
     
     color_cycle = iter(PUBLICATION_COLORS)
@@ -422,7 +429,8 @@ def _plot_agent_predicted_rewards(
         plt.close()
         return False
     
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel("Average Predicted Reward", fontweight='normal')
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
@@ -496,6 +504,7 @@ def _plot_agent_predicted_rewards_by_action(
     title: str,
     output_path: str,
     smooth_window: int,
+    show_title: bool = True,
 ) -> bool:
     """Plot predicted reward series for an agent by movement actions."""
     if not series or not any(series.values()):
@@ -559,7 +568,8 @@ def _plot_agent_predicted_rewards_by_action(
         plt.close()
         return False
     
-    ax.set_title(title, fontweight='bold', pad=10)
+    if show_title:
+        ax.set_title(title, fontweight='bold', pad=10)
     ax.set_xlabel("Episode", fontweight='normal')
     ax.set_ylabel("Average Predicted Reward", fontweight='normal')
     ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
@@ -573,7 +583,7 @@ def _plot_agent_predicted_rewards_by_action(
 
 
 def generate_agent_predicted_reward_plots(
-    run_dir: str, smooth_window: int
+    run_dir: str, smooth_window: int, show_title: bool = True
 ) -> Dict[str, bool]:
     """Generate predicted reward plots for each agent."""
     extended_info_dir = os.path.join(run_dir, "extended_info")
@@ -605,7 +615,7 @@ def generate_agent_predicted_reward_plots(
             
             output_path = os.path.join(plots_dir, f"agent_{agent_id}_predicted_rewards.png")
             plotted = _plot_agent_predicted_rewards(
-                series, agent_id, title, output_path, smooth_window
+                series, agent_id, title, output_path, smooth_window, show_title
             )
             results[f"{agent_id}_condition"] = plotted
         
@@ -618,14 +628,16 @@ def generate_agent_predicted_reward_plots(
             
             output_path = os.path.join(plots_dir, f"agent_{agent_id}_predicted_rewards_by_action.png")
             plotted = _plot_agent_predicted_rewards_by_action(
-                action_series, agent_id, title, output_path, smooth_window
+                action_series, agent_id, title, output_path, smooth_window, show_title
             )
             results[f"{agent_id}_action"] = plotted
     
     return results
 
 
-def generate_run_plots(run_dir: str, smooth_window: int, normalize: bool) -> Tuple[bool, bool]:
+def generate_run_plots(
+    run_dir: str, smooth_window: int, normalize: bool, show_title: bool = True
+) -> Tuple[bool, bool]:
     metrics_path = os.path.join(run_dir, "metrics.jsonl")
     if not os.path.isfile(metrics_path):
         # Try metrics.json as fallback (some runs use .json extension for JSONL format)
@@ -677,6 +689,7 @@ def generate_run_plots(run_dir: str, smooth_window: int, normalize: bool) -> Tup
         ylabel=reward_ylabel,
         output_path=rewards_path,
         smooth_window=smooth_window,
+        show_title=show_title,
     )
     if normalize:
         social_plotted = _plot_series(
@@ -685,6 +698,7 @@ def generate_run_plots(run_dir: str, smooth_window: int, normalize: bool) -> Tup
             ylabel=social_ylabel,
             output_path=social_path,
             smooth_window=smooth_window,
+            show_title=show_title,
         )
     else:
         social_plotted = _plot_social_subplots(
@@ -692,6 +706,7 @@ def generate_run_plots(run_dir: str, smooth_window: int, normalize: bool) -> Tup
             title=social_title,
             output_path=social_path,
             smooth_window=smooth_window,
+            show_title=show_title,
         )
     return rewards_plotted, social_plotted
 
@@ -715,6 +730,11 @@ def main() -> int:
         action="store_true",
         help="Normalize each metric series to [0, 1] and plot social metrics on one graph.",
     )
+    parser.add_argument(
+        "--no-title",
+        action="store_true",
+        help="Hide titles from all plots.",
+    )
     args = parser.parse_args()
 
     path = args.run_dir
@@ -723,10 +743,13 @@ def main() -> int:
     else:
         run_dir = path
 
+    show_title = not args.no_title
+
     rewards_plotted, social_plotted = generate_run_plots(
         run_dir,
         smooth_window=args.smooth,
         normalize=args.normalize,
+        show_title=show_title,
     )
     if rewards_plotted:
         print(f"Saved rewards plot to {os.path.join(run_dir, 'plots', 'rewards.png')}")
@@ -738,7 +761,9 @@ def main() -> int:
         print("No social metrics found to plot.")
     
     # Generate per-agent predicted reward plots
-    agent_results = generate_agent_predicted_reward_plots(run_dir, smooth_window=args.smooth)
+    agent_results = generate_agent_predicted_reward_plots(
+        run_dir, smooth_window=args.smooth, show_title=show_title
+    )
     if agent_results:
         for key, plotted in agent_results.items():
             if plotted:
