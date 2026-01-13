@@ -1,7 +1,7 @@
 __all__ = [
     "base",
     "dqn",
-    "ppo",
+    "ippo",
     "mappo",
     "random_policy",
 ]

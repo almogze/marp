@@ -7,10 +7,10 @@ def build_algorithm(config: AlgorithmConfig):
         from .algorithms.dqn import DQNAlgorithm
 
         return DQNAlgorithm(config.dqn)
-    if name == "ppo":
-        from .algorithms.ppo import PPOAlgorithm
+    if name == "ippo":
+        from .algorithms.ippo import IPPOAlgorithm
 
-        return PPOAlgorithm(config.ppo)
+        return IPPOAlgorithm(config.ippo)
     if name == "mappo":
         from .algorithms.mappo import MAPPOAlgorithm
 
@@ -19,4 +19,4 @@ def build_algorithm(config: AlgorithmConfig):
         from .algorithms.random_policy import RandomAlgorithm
 
         return RandomAlgorithm(config)
-    raise ValueError(f"Unknown algorithm '{name}'. Available: ['dqn', 'ppo', 'mappo', 'random']")
+    raise ValueError(f"Unknown algorithm '{name}'. Available: ['dqn', 'ippo', 'mappo', 'random']")

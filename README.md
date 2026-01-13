@@ -67,7 +67,7 @@ Config tips:
 - `logging.video_enabled=false` disables video capture for faster training.
 - `logging.log_agent_episode_details=true` (default) enables detailed per-agent episode logging to separate files.
 - The last episode is always recorded (if video is enabled), regardless of `video_every_n_episodes`.
-- Example configs: `configs/train_dqn.json`, `configs/train_ppo.json`, `configs/train_mappo.json`.
+- Example configs: `configs/train_dqn.json`, `configs/train_ippo.json`, `configs/train_mappo.json`.
 
 ## Run the environment script
 
@@ -101,7 +101,7 @@ You can run multiple games sequentially in several ways:
 
 **Multiple algorithms:**
 ```bash
-python scripts/run_env.py --algo dqn ppo mappo --episodes 100
+python scripts/run_env.py --algo dqn ippo mappo --episodes 100
 ```
 
 **Multiple maps:**
@@ -122,13 +122,13 @@ This runs 4 games: seeds 0, 1, random, and 3.
 
 **All random seeds:**
 ```bash
-python scripts/run_env.py --algo dqn ppo --random-seed --episodes 100
+python scripts/run_env.py --algo dqn ippo --random-seed --episodes 100
 ```
 This runs 2 games, each with a different randomly generated seed.
 
 **All combinations:**
 ```bash
-python scripts/run_env.py --algo dqn ppo --map small large --agents 3 5 --seed 0 1 --episodes 100
+python scripts/run_env.py --algo dqn ippo --map small large --agents 3 5 --seed 0 1 --episodes 100
 ```
 This will run all combinations: 2 algorithms × 2 maps × 2 agent counts × 2 seeds = 16 games total.
 
@@ -138,7 +138,7 @@ Create a JSON file (e.g., `sequence.json`) with a list of game configurations:
 ```json
 [
   {"algo": "dqn", "episodes": 100, "map_type": "small", "agents": 3, "seed": 0},
-  {"algo": "ppo", "episodes": 200, "map_type": "large", "agents": 5, "reward_model": true, "seed": 1},
+  {"algo": "ippo", "episodes": 200, "map_type": "large", "agents": 5, "reward_model": true, "seed": 1},
   {"algo": "mappo", "episodes": 150, "map_type": "small", "agents": 7, "seed": null},
   {"algo": "dqn", "episodes": 100, "map_type": "small", "agents": 3, "random_seed": true}
 ]
@@ -151,7 +151,7 @@ python scripts/run_env.py --sequence-file sequence.json
 ```
 
 Arguments:
-- `--algo {dqn,ppo,mappo,random}` selects the algorithm (default: dqn). Can specify multiple values to run sequentially.
+- `--algo {dqn,ippo,mappo,random}` selects the algorithm (default: dqn). Can specify multiple values to run sequentially.
 - `--episodes N` sets the number of training episodes.
 - `--seed N` sets the random seed(s) (integer or 'random'). Can specify multiple values to run sequentially (e.g., `--seed 0 1 random 3`). Use 'random' to generate a random seed for that specific game.
 - `--random-seed` uses a randomly generated seed for all games (overrides any `--seed` values). Each game will get a different random seed.
@@ -164,11 +164,11 @@ Arguments:
 - `--sequence-file PATH` path to JSON file containing a list of game configurations to run sequentially.
 
 Switch algorithms by changing `algorithm.name` in the config. Supported values:
-`dqn`, `random`, `ppo` (SB3), `mappo` (native).
+`dqn`, `random`, `ippo`, `mappo`.
 
-PPO requires `stable-baselines3` and `gymnasium` installed.
-For multiple agents, PPO trains independent policies sequentially against random opponents.
-MAPPO uses the native trainer loop with a shared actor and centralized critic.
+- **DQN**: Deep Q-Network for single or multi-agent (independent learners).
+- **IPPO**: Independent PPO - true decentralized training where all agents train simultaneously with their own policies. Each agent has independent actor and critic networks.
+- **MAPPO**: Multi-Agent PPO with centralized training and decentralized execution (CTDE). Uses a shared actor and centralized critic over concatenated observations.
 
 ## Preference-based reward modeling (MARP)
 
@@ -181,8 +181,7 @@ Key mechanics:
 - `compute_social_metrics()` and `get_social_metrics()` provide metrics per episode.
 - Preference pairs are generated from episode metrics (e.g., efficiency x peace).
 - Reward model is trained via Bradley-Terry on trajectory pairs.
-- DQN uses the external loop and swaps `rewards` with `r_hat` in `Trainer.train()`.
-- PPO uses a Gym wrapper that overrides the reward returned by `step()`.
+- DQN/IPPO/MAPPO use the external loop and swap `rewards` with `r_hat` in `Trainer.train()`.
 
 Enable in config:
 
@@ -241,12 +240,11 @@ The reward model training supports several performance optimizations for memory-
 
 Logging:
 - `reward_pred_*` tracks predicted rewards when RM is enabled.
-- `reward_env_*` tracks environment rewards (PPO wrapper).
+- `reward_env_*` tracks environment rewards.
 - `reward_model/*` in TensorBoard shows RM loss/accuracy/correlation.
 
 Checkpoints:
-- DQN: `logs/<run>/model_last.pt`, `logs/<run>/reward_model_last.pt`
-- PPO: `logs/<run>/ppo_model_<agent_id>_last.zip`, `logs/<run>/reward_model_<agent_id>_last.pt`
+- All algorithms: `logs/<run>/model_last.pt`, `logs/<run>/reward_model_last.pt`
 
 ## Plotting run metrics
 
@@ -346,24 +344,34 @@ Example session names:
 - `"narrow view - efficiency"`
 - `"input aggregation - efficiency x peace"`
 
-## Running PPO with multiple agents
+## Running IPPO
 
-Set `env.num_agents` and keep `algorithm.ppo.multi_agent_mode` as `independent`. Each
-agent is trained sequentially against random opponents:
+IPPO (Independent PPO) uses true decentralized training where all agents train
+simultaneously with their own learning policies. Each agent has independent actor
+and critic networks that use local observations only.
 
 ```json
 {
   "env": {"num_agents": 5},
   "algorithm": {
-    "name": "ppo",
-    "ppo": {
-      "multi_agent_mode": "independent",
-      "opponent_policy": "random",
-      "per_agent_timesteps": 100000
+    "name": "ippo",
+    "ippo": {
+      "learning_rate": 0.0003,
+      "n_steps": 1024,
+      "batch_size": 256,
+      "update_epochs": 4,
+      "hidden_size": 256,
+      "flatten_obs": false,
+      "normalize_obs": false
     }
   }
 }
 ```
+
+Key differences from MAPPO:
+- **Decentralized critics**: Each agent's critic uses only its local observation (not global state).
+- **Independent networks**: Each agent has its own actor and critic networks.
+- **No parameter sharing**: Agents do not share any network weights.
 
 ## Running MAPPO
 

@@ -103,6 +103,10 @@ class Trainer:
             self.logger.close()
             return
 
+        # Set total episodes for algorithms that support entropy annealing
+        if hasattr(self.algorithm, "set_total_episodes"):
+            self.algorithm.set_total_episodes(self.config.episodes)
+
         video_recorder = self._build_video_recorder()
         rm_cfg = self.config.reward_model
         reward_model = None

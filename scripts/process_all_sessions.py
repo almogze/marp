@@ -51,14 +51,35 @@ plt.rcParams.update({
 
 SOCIAL_ORDER = ("efficiency", "equality", "sustainability", "peace")
 
-# Define sessions and their run directories
-SESSIONS = {
+# Define sessions and their run directories by algorithm
+MAPPO_SESSIONS = {
+    "input aggregation - efficiency": [
+        "logs/input aggregation - efficiency/20260109-132350-mappo-map=medium-agents=5-rm=input_aggregation-seed=792766690",
+        "logs/input aggregation - efficiency/20260109-141043-mappo-map=medium-agents=5-rm=input_aggregation-seed=1977920447",
+        "logs/input aggregation - efficiency/20260109-145843-mappo-map=medium-agents=5-rm=input_aggregation-seed=525605494",
+        "logs/input aggregation - efficiency/20260109-154749-mappo-map=medium-agents=5-rm=input_aggregation-seed=711072676",
+        "logs/input aggregation - efficiency/20260109-163637-mappo-map=medium-agents=5-rm=input_aggregation-seed=278575429",
+    ],
+    "input aggregation - efficiency x equality": [
+        "logs/input aggregation - efficiency x equality/20260110-121755-mappo-map=medium-agents=5-rm=input_aggregation-seed=1546674017",
+        "logs/input aggregation - efficiency x equality/20260110-130526-mappo-map=medium-agents=5-rm=input_aggregation-seed=1642277979",
+        "logs/input aggregation - efficiency x equality/20260110-135318-mappo-map=medium-agents=5-rm=input_aggregation-seed=1962977844",
+        "logs/input aggregation - efficiency x equality/20260110-144059-mappo-map=medium-agents=5-rm=input_aggregation-seed=1268758028",
+        "logs/input aggregation - efficiency x equality/20260110-152818-mappo-map=medium-agents=5-rm=input_aggregation-seed=677756965",
+    ],
     "input aggregation - efficiency x peace": [
         "logs/input aggregation - efficiency x peace/20260109-040340-mappo-map=medium-agents=5-rm=input_aggregation-seed=1497856192",
         "logs/input aggregation - efficiency x peace/20260109-045125-mappo-map=medium-agents=5-rm=input_aggregation-seed=1185191064",
         "logs/input aggregation - efficiency x peace/20260109-053859-mappo-map=medium-agents=5-rm=input_aggregation-seed=457152814",
         "logs/input aggregation - efficiency x peace/20260109-062647-mappo-map=medium-agents=5-rm=input_aggregation-seed=791109345",
         "logs/input aggregation - efficiency x peace/20260109-071425-mappo-map=medium-agents=5-rm=input_aggregation-seed=1525681617",
+    ],
+    "input aggregation - efficiency x sustainability": [
+        "logs/input aggregation - efficiency x sustainability/20260110-030439-mappo-map=medium-agents=5-rm=input_aggregation-seed=1983526428",
+        "logs/input aggregation - efficiency x sustainability/20260110-035230-mappo-map=medium-agents=5-rm=input_aggregation-seed=1769377376",
+        "logs/input aggregation - efficiency x sustainability/20260110-043942-mappo-map=medium-agents=5-rm=input_aggregation-seed=565799211",
+        "logs/input aggregation - efficiency x sustainability/20260110-052720-mappo-map=medium-agents=5-rm=input_aggregation-seed=236314447",
+        "logs/input aggregation - efficiency x sustainability/20260110-061449-mappo-map=medium-agents=5-rm=input_aggregation-seed=1032629575",
     ],
     "narrow view - efficiency": [
         "logs/narrow view - efficiency/20260109-093404-mappo-map=medium-agents=5-rm=narrow_view-seed=1469728708",
@@ -67,6 +88,13 @@ SESSIONS = {
         "logs/narrow view - efficiency/20260109-115113-mappo-map=medium-agents=5-rm=narrow_view-seed=1176278676",
         "logs/narrow view - efficiency/20260109-123713-mappo-map=medium-agents=5-rm=narrow_view-seed=936768364",
     ],
+    "narrow view - efficiency x equality": [
+        "logs/narrow view - efficiency x equality/20260110-082053-mappo-map=medium-agents=5-rm=narrow_view-seed=181498066",
+        "logs/narrow view - efficiency x equality/20260110-090814-mappo-map=medium-agents=5-rm=narrow_view-seed=647450278",
+        "logs/narrow view - efficiency x equality/20260110-095601-mappo-map=medium-agents=5-rm=narrow_view-seed=879955525",
+        "logs/narrow view - efficiency x equality/20260110-104327-mappo-map=medium-agents=5-rm=narrow_view-seed=295293517",
+        "logs/narrow view - efficiency x equality/20260110-113027-mappo-map=medium-agents=5-rm=narrow_view-seed=1445254938",
+    ],
     "narrow view - efficiency x peace": [
         "logs/narrow view - efficiency x peace/20260109-000553-mappo-map=medium-agents=5-rm=narrow_view-seed=1565503637",
         "logs/narrow view - efficiency x peace/20260109-005300-mappo-map=medium-agents=5-rm=narrow_view-seed=901297705",
@@ -74,14 +102,73 @@ SESSIONS = {
         "logs/narrow view - efficiency x peace/20260109-022810-mappo-map=medium-agents=5-rm=narrow_view-seed=1349720220",
         "logs/narrow view - efficiency x peace/20260109-031545-mappo-map=medium-agents=5-rm=narrow_view-seed=1744625372",
     ],
-    "input aggregation - efficiency": [
-        "logs/input aggregation - efficiency/20260109-132350-mappo-map=medium-agents=5-rm=input_aggregation-seed=792766690",
-        "logs/input aggregation - efficiency/20260109-141043-mappo-map=medium-agents=5-rm=input_aggregation-seed=1977920447",
-        "logs/input aggregation - efficiency/20260109-145843-mappo-map=medium-agents=5-rm=input_aggregation-seed=525605494",
-        "logs/input aggregation - efficiency/20260109-154749-mappo-map=medium-agents=5-rm=input_aggregation-seed=711072676",
-        "logs/input aggregation - efficiency/20260109-163637-mappo-map=medium-agents=5-rm=input_aggregation-seed=278575429",
+    "narrow view - efficiency x sustainability": [
+        "logs/narrow view - efficiency x sustainability/20260109-231131-mappo-map=medium-agents=5-rm=narrow_view-seed=338324822",
+        "logs/narrow view - efficiency x sustainability/20260109-235737-mappo-map=medium-agents=5-rm=narrow_view-seed=242988679",
+        "logs/narrow view - efficiency x sustainability/20260110-004328-mappo-map=medium-agents=5-rm=narrow_view-seed=1374241342",
+        "logs/narrow view - efficiency x sustainability/20260110-012950-mappo-map=medium-agents=5-rm=narrow_view-seed=1245543567",
+        "logs/narrow view - efficiency x sustainability/20260110-021742-mappo-map=medium-agents=5-rm=narrow_view-seed=1269396340",
     ],
 }
+
+IPPO_SESSIONS = {
+    "input aggregation - efficiency": [
+        "logs/ippo/input aggregation - efficiency/20260111-203122-ippo-map=medium-agents=5-rm=input_aggregation-seed=645718159",
+        "logs/ippo/input aggregation - efficiency/20260111-214017-ippo-map=medium-agents=5-rm=input_aggregation-seed=1165975363",
+        "logs/ippo/input aggregation - efficiency/20260111-225601-ippo-map=medium-agents=5-rm=input_aggregation-seed=1424338770",
+        "logs/ippo/input aggregation - efficiency/20260112-001909-ippo-map=medium-agents=5-rm=input_aggregation-seed=1045043222",
+        "logs/ippo/input aggregation - efficiency/20260112-013424-ippo-map=medium-agents=5-rm=input_aggregation-seed=1445971607",
+    ],
+    "input aggregation - efficiency x equality": [
+        "logs/ippo/input aggregation - efficiency x equality/20260112-104446-ippo-map=medium-agents=5-rm=input_aggregation-seed=1245558641",
+        "logs/ippo/input aggregation - efficiency x equality/20260112-122136-ippo-map=medium-agents=5-rm=input_aggregation-seed=1936317336",
+        "logs/ippo/input aggregation - efficiency x equality/20260112-135450-ippo-map=medium-agents=5-rm=input_aggregation-seed=633338479",
+        "logs/ippo/input aggregation - efficiency x equality/20260112-153231-ippo-map=medium-agents=5-rm=input_aggregation-seed=1691504131",
+        "logs/ippo/input aggregation - efficiency x equality/20260112-171625-ippo-map=medium-agents=5-rm=input_aggregation-seed=1652275711",
+    ],
+    "input aggregation - efficiency x peace": [
+        "logs/ippo/input aggregation - efficiency x peace/20260111-020312-ippo-map=medium-agents=5-rm=input_aggregation-seed=1809768526",
+        "logs/ippo/input aggregation - efficiency x peace/20260111-031139-ippo-map=medium-agents=5-rm=input_aggregation-seed=1873094747",
+        "logs/ippo/input aggregation - efficiency x peace/20260111-041920-ippo-map=medium-agents=5-rm=input_aggregation-seed=337877385",
+        "logs/ippo/input aggregation - efficiency x peace/20260111-052659-ippo-map=medium-agents=5-rm=input_aggregation-seed=952959586",
+        "logs/ippo/input aggregation - efficiency x peace/20260111-063448-ippo-map=medium-agents=5-rm=input_aggregation-seed=555553322",
+    ],
+    "narrow view - efficiency": [
+        "logs/ippo/narrow view - efficiency/20260111-131250-ippo-map=medium-agents=5-rm=narrow_view-seed=329830108",
+        "logs/ippo/narrow view - efficiency/20260111-143323-ippo-map=medium-agents=5-rm=narrow_view-seed=163441203",
+        "logs/ippo/narrow view - efficiency/20260111-161528-ippo-map=medium-agents=5-rm=narrow_view-seed=1993731373",
+        "logs/ippo/narrow view - efficiency/20260111-174235-ippo-map=medium-agents=5-rm=narrow_view-seed=81741929",
+        "logs/ippo/narrow view - efficiency/20260111-190938-ippo-map=medium-agents=5-rm=narrow_view-seed=1300117609",
+    ],
+    "narrow view - efficiency x equality": [
+        "logs/ippo/narrow view - efficiency x equality/20260112-024828-ippo-map=medium-agents=5-rm=narrow_view-seed=2115242154",
+        "logs/ippo/narrow view - efficiency x equality/20260112-042155-ippo-map=medium-agents=5-rm=narrow_view-seed=441411738",
+        "logs/ippo/narrow view - efficiency x equality/20260112-055816-ippo-map=medium-agents=5-rm=narrow_view-seed=1015887523",
+        "logs/ippo/narrow view - efficiency x equality/20260112-073522-ippo-map=medium-agents=5-rm=narrow_view-seed=297207890",
+        "logs/ippo/narrow view - efficiency x equality/20260112-091225-ippo-map=medium-agents=5-rm=narrow_view-seed=45364778",
+    ],
+    "narrow view - efficiency x peace": [
+        "logs/ippo/narrow view - efficiency x peace/20260110-201928-ippo-map=medium-agents=5-rm=narrow_view-seed=1818665610",
+        "logs/ippo/narrow view - efficiency x peace/20260110-212744-ippo-map=medium-agents=5-rm=narrow_view-seed=285841148",
+        "logs/ippo/narrow view - efficiency x peace/20260110-223621-ippo-map=medium-agents=5-rm=narrow_view-seed=277460690",
+        "logs/ippo/narrow view - efficiency x peace/20260110-234414-ippo-map=medium-agents=5-rm=narrow_view-seed=1920066599",
+        "logs/ippo/narrow view - efficiency x peace/20260111-005421-ippo-map=medium-agents=5-rm=narrow_view-seed=309879235",
+    ],
+}
+
+# Default to MAPPO sessions for backward compatibility
+SESSIONS = MAPPO_SESSIONS
+
+
+def get_sessions_for_algorithm(algorithm: str) -> Dict[str, List[str]]:
+    """Get the sessions dictionary for the specified algorithm."""
+    algorithm = algorithm.lower()
+    if algorithm == "mappo":
+        return MAPPO_SESSIONS
+    elif algorithm == "ippo":
+        return IPPO_SESSIONS
+    else:
+        raise ValueError(f"Unknown algorithm: {algorithm}. Supported: mappo, ippo")
 
 
 # =============================================================================
@@ -105,7 +192,7 @@ def parse_session_name(session_name: str) -> Tuple[str, str]:
     return approach, social_target
 
 
-def parse_all_sessions() -> Dict[str, Dict[str, Any]]:
+def parse_all_sessions(sessions: Dict[str, List[str]]) -> Dict[str, Dict[str, Any]]:
     """
     Parse all sessions into metadata structure.
     
@@ -113,7 +200,7 @@ def parse_all_sessions() -> Dict[str, Dict[str, Any]]:
         {session_name: {"approach": str, "social_target": str, "runs": list}}
     """
     metadata = {}
-    for session_name, runs in SESSIONS.items():
+    for session_name, runs in sessions.items():
         approach, social_target = parse_session_name(session_name)
         metadata[session_name] = {
             "approach": approach,
@@ -123,25 +210,25 @@ def parse_all_sessions() -> Dict[str, Dict[str, Any]]:
     return metadata
 
 
-def get_unique_approaches() -> List[str]:
+def get_unique_approaches(sessions: Dict[str, List[str]]) -> List[str]:
     """Get list of unique approaches across all sessions."""
     approaches = set()
-    for session_name in SESSIONS.keys():
+    for session_name in sessions.keys():
         approach, _ = parse_session_name(session_name)
         approaches.add(approach)
     return sorted(approaches)
 
 
-def get_unique_social_targets() -> List[str]:
+def get_unique_social_targets(sessions: Dict[str, List[str]]) -> List[str]:
     """Get list of unique social targets across all sessions."""
     targets = set()
-    for session_name in SESSIONS.keys():
+    for session_name in sessions.keys():
         _, target = parse_session_name(session_name)
         targets.add(target)
     return sorted(targets)
 
 
-def group_sessions_by_approach() -> Dict[str, List[str]]:
+def group_sessions_by_approach(sessions: Dict[str, List[str]]) -> Dict[str, List[str]]:
     """
     Group session names by approach.
     
@@ -149,7 +236,7 @@ def group_sessions_by_approach() -> Dict[str, List[str]]:
         {approach: [session_name1, session_name2, ...]}
     """
     groups: Dict[str, List[str]] = {}
-    for session_name in SESSIONS.keys():
+    for session_name in sessions.keys():
         approach, _ = parse_session_name(session_name)
         if approach not in groups:
             groups[approach] = []
@@ -157,7 +244,7 @@ def group_sessions_by_approach() -> Dict[str, List[str]]:
     return groups
 
 
-def group_sessions_by_target() -> Dict[str, List[str]]:
+def group_sessions_by_target(sessions: Dict[str, List[str]]) -> Dict[str, List[str]]:
     """
     Group session names by social target.
     
@@ -165,7 +252,7 @@ def group_sessions_by_target() -> Dict[str, List[str]]:
         {social_target: [session_name1, session_name2, ...]}
     """
     groups: Dict[str, List[str]] = {}
-    for session_name in SESSIONS.keys():
+    for session_name in sessions.keys():
         _, target = parse_session_name(session_name)
         if target not in groups:
             groups[target] = []
@@ -173,9 +260,11 @@ def group_sessions_by_target() -> Dict[str, List[str]]:
     return groups
 
 
-def get_session_by_approach_and_target(approach: str, target: str) -> Optional[str]:
+def get_session_by_approach_and_target(
+    sessions: Dict[str, List[str]], approach: str, target: str
+) -> Optional[str]:
     """Find session name matching given approach and target."""
-    for session_name in SESSIONS.keys():
+    for session_name in sessions.keys():
         sess_approach, sess_target = parse_session_name(session_name)
         if sess_approach == approach and sess_target == target:
             return session_name
@@ -645,7 +734,7 @@ def _plot_predicted_reward_all_runs(
 # =============================================================================
 
 def _load_session_averaged_social_metrics(
-    session_name: str, base_dir: str
+    session_name: str, base_dir: str, sessions: Dict[str, List[str]]
 ) -> Dict[str, List[Tuple[int, float]]]:
     """
     Load and average social metrics across all runs in a session.
@@ -653,12 +742,12 @@ def _load_session_averaged_social_metrics(
     Returns:
         {metric_name: [(episode, avg_value), ...]}
     """
-    means, _ = _load_session_social_metrics_with_std(session_name, base_dir)
+    means, _ = _load_session_social_metrics_with_std(session_name, base_dir, sessions)
     return means
 
 
 def _load_session_social_metrics_with_std(
-    session_name: str, base_dir: str
+    session_name: str, base_dir: str, sessions: Dict[str, List[str]]
 ) -> Tuple[Dict[str, List[Tuple[int, float]]], Dict[str, List[Tuple[int, float]]]]:
     """
     Load social metrics across all runs in a session, returning both mean and std.
@@ -666,7 +755,7 @@ def _load_session_social_metrics_with_std(
     Returns:
         (means, stds) where each is {metric_name: [(episode, value), ...]}
     """
-    run_dirs = SESSIONS.get(session_name, [])
+    run_dirs = sessions.get(session_name, [])
     if not run_dirs:
         return {}, {}
     
@@ -706,7 +795,7 @@ def _load_session_social_metrics_with_std(
 
 
 def _load_session_averaged_rewards(
-    session_name: str, base_dir: str
+    session_name: str, base_dir: str, sessions: Dict[str, List[str]]
 ) -> List[Tuple[int, float]]:
     """
     Load and average episode rewards across all runs in a session.
@@ -714,7 +803,7 @@ def _load_session_averaged_rewards(
     Returns:
         [(episode, avg_reward), ...]
     """
-    run_dirs = SESSIONS.get(session_name, [])
+    run_dirs = sessions.get(session_name, [])
     if not run_dirs:
         return []
     
@@ -756,18 +845,19 @@ def _load_session_averaged_rewards(
 
 
 def _load_session_averaged_predicted_rewards(
-    session_name: str, base_dir: str, by_condition: bool = True
+    session_name: str, base_dir: str, sessions: Dict[str, List[str]], by_condition: bool = True
 ) -> Dict[str, List[Tuple[int, float]]]:
     """
     Load and average predicted rewards across all runs in a session.
     
     Args:
+        sessions: The sessions dictionary to use
         by_condition: If True, group by condition; if False, group by action
         
     Returns:
         {category: [(episode, avg_value), ...]}
     """
-    run_dirs = SESSIONS.get(session_name, [])
+    run_dirs = sessions.get(session_name, [])
     if not run_dirs:
         return {}
     
@@ -1082,7 +1172,12 @@ def plot_bar_comparison(
     return True
 
 
-def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
+def generate_all_comparisons(
+    base_dir: str,
+    sessions: Dict[str, List[str]],
+    algorithm: str = "mappo",
+    show_title: bool = True,
+) -> None:
     """
     Generate all cross-session comparison plots.
     
@@ -1095,11 +1190,14 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
     - Bar charts with summary statistics (raw and normalized)
     """
     print("\n" + "=" * 80)
-    print("Generating cross-session comparisons")
+    print(f"Generating cross-session comparisons for {algorithm.upper()}")
     print("=" * 80)
     
-    # Create output directories
-    comparisons_dir = os.path.join(base_dir, "logs", "comparisons")
+    # Create output directories (algorithm-specific for ippo)
+    if algorithm.lower() == "ippo":
+        comparisons_dir = os.path.join(base_dir, "logs", "ippo", "comparisons")
+    else:
+        comparisons_dir = os.path.join(base_dir, "logs", "comparisons")
     by_approach_dir = os.path.join(comparisons_dir, "by_approach")
     by_target_dir = os.path.join(comparisons_dir, "by_target")
     all_sessions_dir = os.path.join(comparisons_dir, "all_sessions")
@@ -1119,10 +1217,10 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
         os.makedirs(d, exist_ok=True)
     
     # Get groupings
-    approaches = get_unique_approaches()
-    targets = get_unique_social_targets()
-    by_approach = group_sessions_by_approach()
-    by_target = group_sessions_by_target()
+    approaches = get_unique_approaches(sessions)
+    targets = get_unique_social_targets(sessions)
+    by_approach = group_sessions_by_approach(sessions)
+    by_target = group_sessions_by_target(sessions)
     
     print(f"\nApproaches: {approaches}")
     print(f"Social targets: {targets}")
@@ -1133,11 +1231,11 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
     all_social_std: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
     all_rewards_data: Dict[str, List[Tuple[int, float]]] = {}
     
-    for session_name in SESSIONS.keys():
-        means, stds = _load_session_social_metrics_with_std(session_name, base_dir)
+    for session_name in sessions.keys():
+        means, stds = _load_session_social_metrics_with_std(session_name, base_dir, sessions)
         all_social_data[session_name] = means
         all_social_std[session_name] = stds
-        all_rewards_data[session_name] = _load_session_averaged_rewards(session_name, base_dir)
+        all_rewards_data[session_name] = _load_session_averaged_rewards(session_name, base_dir, sessions)
         print(f"  Loaded: {session_name}")
     
     # =========================================================================
@@ -1274,7 +1372,7 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
     for metric_name in SOCIAL_ORDER:
         sessions_data = {}
         sessions_std = {}
-        for session_name in SESSIONS.keys():
+        for session_name in sessions.keys():
             approach, target = parse_session_name(session_name)
             label = f"{_format_approach_label(approach)} - {_format_target_label(target)}"
             data = all_social_data.get(session_name, {}).get(metric_name, [])
@@ -1306,7 +1404,7 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
     
     # Rewards - all sessions
     sessions_data = {}
-    for session_name in SESSIONS.keys():
+    for session_name in sessions.keys():
         approach, target = parse_session_name(session_name)
         label = f"{_format_approach_label(approach)} - {_format_target_label(target)}"
         data = all_rewards_data.get(session_name, [])
@@ -1345,7 +1443,7 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
     avg_stats: Dict[str, Dict[str, float]] = {}
     std_stats: Dict[str, Dict[str, float]] = {}
     
-    for session_name in SESSIONS.keys():
+    for session_name in sessions.keys():
         final_stats[session_name] = {}
         avg_stats[session_name] = {}
         std_stats[session_name] = {}
@@ -1450,7 +1548,7 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
         metric_avg: Dict[str, Dict[str, float]] = {}
         metric_std: Dict[str, Dict[str, float]] = {}
         
-        for session_name in SESSIONS.keys():
+        for session_name in sessions.keys():
             approach, target = parse_session_name(session_name)
             label = f"{_format_approach_label(approach)}\n{_format_target_label(target)}"
             metric_final[label] = {"value": final_stats[session_name].get(metric_name, 0)}
@@ -1487,17 +1585,26 @@ def generate_all_comparisons(base_dir: str, show_title: bool = True) -> None:
     print(f"    - Normalized: {summary_bars_normalized_dir}")
 
 
-def process_session(session_name: str, run_dirs: list, base_dir: str, show_title: bool = True):
+def process_session(
+    session_name: str,
+    run_dirs: list,
+    base_dir: str,
+    algorithm: str = "mappo",
+    show_title: bool = True,
+):
     """Process a single session."""
     print(f"\n{'='*80}")
-    print(f"Processing session: {session_name}")
+    print(f"Processing session: {session_name} ({algorithm.upper()})")
     print(f"{'='*80}")
     
     # Convert relative paths to absolute
     abs_run_dirs = [os.path.join(base_dir, d) for d in run_dirs]
     
-    # Create output directory
-    session_output_dir = os.path.join(base_dir, "logs", session_name, "plots_averaged")
+    # Create output directory (algorithm-specific for ippo)
+    if algorithm.lower() == "ippo":
+        session_output_dir = os.path.join(base_dir, "logs", "ippo", session_name, "plots_averaged")
+    else:
+        session_output_dir = os.path.join(base_dir, "logs", session_name, "plots_averaged")
     os.makedirs(session_output_dir, exist_ok=True)
     
     # 1. Run plot_multiple_runs for averaged metrics
@@ -1669,8 +1776,11 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run everything (per-session plots + comparisons)
+  # Run everything for MAPPO (default)
   python scripts/process_all_sessions.py
+
+  # Run everything for IPPO
+  python scripts/process_all_sessions.py --algorithm ippo
 
   # Run ONLY cross-session comparisons (skip per-session plots)
   python scripts/process_all_sessions.py --comparisons-only
@@ -1680,7 +1790,19 @@ Examples:
 
   # Generate plots without titles
   python scripts/process_all_sessions.py --no-title
+
+  # IPPO with comparisons only
+  python scripts/process_all_sessions.py --algorithm ippo --comparisons-only
         """
+    )
+    
+    parser.add_argument(
+        "--algorithm",
+        "-a",
+        type=str,
+        default="mappo",
+        choices=["mappo", "ippo"],
+        help="Algorithm to process (default: mappo)"
     )
     
     parser.add_argument(
@@ -1719,11 +1841,16 @@ def main():
     # Determine show_title from arguments
     show_title = not args.no_title
     
+    # Get sessions for the specified algorithm
+    algorithm = args.algorithm.lower()
+    sessions = get_sessions_for_algorithm(algorithm)
+    
     print("=" * 80)
-    print("Processing all experiment sessions")
+    print(f"Processing all experiment sessions ({algorithm.upper()})")
     print("=" * 80)
     print(f"Base directory: {base_dir}")
-    print(f"Number of sessions: {len(SESSIONS)}")
+    print(f"Algorithm: {algorithm.upper()}")
+    print(f"Number of sessions: {len(sessions)}")
     print(f"Show titles: {show_title}")
     
     if args.comparisons_only:
@@ -1735,8 +1862,8 @@ def main():
     
     # Process individual sessions (unless --comparisons-only)
     if not args.comparisons_only:
-        for session_name, run_dirs in SESSIONS.items():
-            process_session(session_name, run_dirs, base_dir, show_title=show_title)
+        for session_name, run_dirs in sessions.items():
+            process_session(session_name, run_dirs, base_dir, algorithm=algorithm, show_title=show_title)
         
         print("\n" + "=" * 80)
         print("Per-session processing complete!")
@@ -1744,8 +1871,11 @@ def main():
         
         # Print summary of output locations
         print("\nPer-session output locations:")
-        for session_name in SESSIONS.keys():
-            session_plots = os.path.join(base_dir, "logs", session_name, "plots_averaged")
+        for session_name in sessions.keys():
+            if algorithm == "ippo":
+                session_plots = os.path.join(base_dir, "logs", "ippo", session_name, "plots_averaged")
+            else:
+                session_plots = os.path.join(base_dir, "logs", session_name, "plots_averaged")
             print(f"  - {session_name}: {session_plots}")
             print(f"      - rewards_averaged.png")
             print(f"      - social_metrics_averaged.png")
@@ -1755,7 +1885,7 @@ def main():
     
     # Generate cross-session comparisons (unless --skip-comparisons)
     if not args.skip_comparisons:
-        generate_all_comparisons(base_dir, show_title=show_title)
+        generate_all_comparisons(base_dir, sessions=sessions, algorithm=algorithm, show_title=show_title)
     
     print("\n" + "=" * 80)
     print("All processing complete!")

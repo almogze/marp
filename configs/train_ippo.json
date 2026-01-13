@@ -1,9 +1,9 @@
 {
-  "episodes": 1,
+  "episodes": 200,
   "seed": 0,
   "env": {
-    "map_type": "small",
-    "num_agents": 1,
+    "map_type": "medium",
+    "num_agents": 5,
     "agent_view_range": 5,
     "ep_length": 600,
     "render": false,
@@ -12,23 +12,23 @@
     "penalty": false
   },
   "algorithm": {
-    "name": "ppo",
-    "ppo": {
-      "policy": "MlpPolicy",
-      "total_timesteps": 100000,
-      "per_agent_timesteps": 100000,
+    "name": "ippo",
+    "ippo": {
       "learning_rate": 0.0003,
       "gamma": 0.99,
-      "n_steps": 1024,
-      "batch_size": 256,
       "gae_lambda": 0.95,
       "clip_range": 0.2,
-      "ent_coef": 0.0,
+      "ent_coef": 0.1,
+      "ent_coef_end": 0.01,
       "vf_coef": 0.5,
-      "policy_kwargs": {},
-      "flatten_obs": true,
-      "multi_agent_mode": "independent",
-      "opponent_policy": "random",
+      "vf_clip": 10.0,
+      "n_steps": 512,
+      "batch_size": 128,
+      "update_epochs": 2,
+      "hidden_size": 256,
+      "max_grad_norm": 0.5,
+      "normalize_obs": true,
+      "flatten_obs": false,
       "device": "auto"
     }
   },
@@ -37,14 +37,14 @@
     "run_name": null,
     "log_interval": 1,
     "video_enabled": true,
-    "video_every_n_episodes": 100,
+    "video_every_n_episodes": 500,
     "video_max_steps": 600,
     "video_fps": 10,
     "video_keep_frames": false,
     "log_agent_episode_details": true
   },
   "reward_model": {
-    "enabled": false,
+    "enabled": true,
     "mode": "narrow_view",
     "phi": "efficiency_x_peace",
     "lr": 0.0001,
@@ -57,3 +57,4 @@
     "save_every_episodes": 200
   }
 }
+
