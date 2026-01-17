@@ -10,7 +10,7 @@ from src.train import Trainer, load_config
 
 DEFAULT_CONFIGS = {
     "dqn": "configs/train_dqn.json",
-    "ppo": "configs/train_ppo.json",
+    "ippo": "configs/train_ippo.json",
     "mappo": "configs/train_mappo.json",
     "random": "configs/train_dqn.json",
 }
@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
         default=["dqn"],
         choices=sorted(DEFAULT_CONFIGS.keys()),
         nargs="+",
-        help="Algorithm(s) to run. Can specify multiple to run sequentially (e.g., --algo dqn ppo mappo).",
+        help="Algorithm(s) to run. Can specify multiple to run sequentially (e.g., --algo dqn ippo mappo).",
     )
     parser.add_argument("--episodes", type=int, help="Number of training episodes.")
     parser.add_argument(

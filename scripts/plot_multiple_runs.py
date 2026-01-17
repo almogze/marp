@@ -123,13 +123,13 @@ def _extract_metric_series(
 
 def _align_series(
     all_series: List[List[Tuple[int, float]]]
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Align multiple series to the same episode indices and compute mean and std.
-    Returns: (episodes, means, stds)
+    Align multiple series to the same episode indices and compute mean, std, and SE.
+    Returns: (episodes, means, stds, ses) where SE = std / sqrt(n)
     """
     if not all_series:
-        return np.array([]), np.array([]), np.array([])
+        return np.array([]), np.array([]), np.array([]), np.array([])
     
     # Get all unique episode numbers
     all_episodes = set()
@@ -138,7 +138,7 @@ def _align_series(
     episodes = sorted(all_episodes)
     
     if not episodes:
-        return np.array([]), np.array([]), np.ndarray([])
+        return np.array([]), np.array([]), np.ndarray([]), np.array([])
     
     # Interpolate/extract values for each series at each episode
     values_matrix = []
@@ -174,12 +174,16 @@ def _align_series(
                         values.append(np.nan)
         values_matrix.append(values)
     
-    # Compute mean and std across runs
+    # Compute mean, std, and SE across runs
     values_array = np.array(values_matrix)
     means = np.nanmean(values_array, axis=0)
     stds = np.nanstd(values_array, axis=0, ddof=1)  # Sample std
     
-    return np.array(episodes), means, stds
+    # Compute SE = std / sqrt(n) where n is number of non-NaN values per episode
+    n_valid = np.sum(~np.isnan(values_array), axis=0)
+    ses = stds / np.sqrt(np.maximum(n_valid, 1))  # Avoid division by zero
+    
+    return np.array(episodes), means, stds, ses
 
 
 def _plot_averaged_series(
@@ -245,7 +249,7 @@ def _thin_error_bars(episodes: np.ndarray, means: np.ndarray, stds: np.ndarray, 
 
 
 def _plot_multiple_averaged_series(
-    series_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    series_dict: Dict[str, Tuple],
     title: str,
     ylabel: str,
     output_path: str,
@@ -254,8 +258,14 @@ def _plot_multiple_averaged_series(
     line_color: str = None,
     error_bar_color: str = None,
     show_title: bool = True,
+    use_se: bool = False,
 ) -> bool:
-    """Plot multiple averaged metric series on the same plot."""
+    """Plot multiple averaged metric series on the same plot.
+    
+    Args:
+        series_dict: Dict mapping metric name to tuple of (episodes, means, stds, ses) or (episodes, means, stds)
+        use_se: If True, use standard error instead of std for shading
+    """
     if not series_dict:
         return False
     
@@ -265,22 +275,30 @@ def _plot_multiple_averaged_series(
     # Get color cycle
     color_cycle = iter(PUBLICATION_COLORS)
     
-    for idx, (metric_name, (episodes, means, stds)) in enumerate(series_dict.items()):
+    for idx, (metric_name, data_tuple) in enumerate(series_dict.items()):
+        # Handle both 3-tuple and 4-tuple formats
+        if len(data_tuple) == 4:
+            episodes, means, stds, ses = data_tuple
+            errors = ses if use_se else stds
+        else:
+            episodes, means, stds = data_tuple
+            errors = stds
+        
         if len(episodes) == 0:
             continue
         
         # Apply smoothing if requested
         if smooth_window > 1 and len(episodes) > 1:
             smoothed_means = []
-            smoothed_stds = []
+            smoothed_errors = []
             for i in range(len(episodes)):
                 start = max(0, i - smooth_window + 1)
                 end = min(len(episodes), i + 1)
                 window_means = means[start:end]
                 smoothed_means.append(np.nanmean(window_means))
-                smoothed_stds.append(np.nanstd(window_means) if len(window_means) > 1 else 0.0)
+                smoothed_errors.append(np.nanstd(window_means) if len(window_means) > 1 else 0.0)
             means = np.array(smoothed_means)
-            stds = np.array(smoothed_stds)
+            errors = np.array(smoothed_errors)
         
         # Get color for this series
         if line_color:
@@ -296,8 +314,8 @@ def _plot_multiple_averaged_series(
         # Use shaded area for all metrics (same as rewards)
         ax.fill_between(
             episodes,
-            means - stds,
-            means + stds,
+            means - errors,
+            means + errors,
             alpha=0.25,
             color=color,
             zorder=1,
@@ -319,14 +337,20 @@ def _plot_multiple_averaged_series(
 
 
 def _plot_social_subplots_averaged(
-    series_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    series_dict: Dict[str, Tuple],
     title: str,
     output_path: str,
     smooth_window: int = 1,
     error_bar_step: int = 10,
     show_title: bool = True,
+    use_se: bool = False,
 ) -> bool:
-    """Plot social metrics as subplots with averaged values (shaded area)."""
+    """Plot social metrics as subplots with averaged values (shaded area).
+    
+    Args:
+        series_dict: Dict mapping metric name to tuple of (episodes, means, stds, ses) or (episodes, means, stds)
+        use_se: If True, use standard error instead of std for shading
+    """
     ordered_names = [name for name in SOCIAL_ORDER if name in series_dict]
     if not ordered_names:
         ordered_names = [name for name in series_dict.keys() if series_dict[name][0].size > 0]
@@ -349,22 +373,30 @@ def _plot_social_subplots_averaged(
     color = PUBLICATION_COLORS[0]  # Use consistent color for all subplots
     
     for ax, name in zip(axes_list, ordered_names):
-        episodes, means, stds = series_dict[name]
+        data_tuple = series_dict[name]
+        # Handle both 3-tuple and 4-tuple formats
+        if len(data_tuple) == 4:
+            episodes, means, stds, ses = data_tuple
+            errors = ses if use_se else stds
+        else:
+            episodes, means, stds = data_tuple
+            errors = stds
+        
         if len(episodes) == 0:
             continue
         
         # Apply smoothing if requested
         if smooth_window > 1 and len(episodes) > 1:
             smoothed_means = []
-            smoothed_stds = []
+            smoothed_errors = []
             for i in range(len(episodes)):
                 start = max(0, i - smooth_window + 1)
                 end = min(len(episodes), i + 1)
                 window_means = means[start:end]
                 smoothed_means.append(np.nanmean(window_means))
-                smoothed_stds.append(np.nanstd(window_means) if len(window_means) > 1 else 0.0)
+                smoothed_errors.append(np.nanstd(window_means) if len(window_means) > 1 else 0.0)
             means = np.array(smoothed_means)
-            stds = np.array(smoothed_stds)
+            errors = np.array(smoothed_errors)
         
         # Plot line
         ax.plot(episodes, means, label=capitalize_metric(name), color=color, linewidth=2.0, zorder=2)
@@ -372,8 +404,8 @@ def _plot_social_subplots_averaged(
         # Plot shaded area (same as rewards)
         ax.fill_between(
             episodes,
-            means - stds,
-            means + stds,
+            means - errors,
+            means + errors,
             alpha=0.25,
             color=color,
             zorder=1,
@@ -449,7 +481,7 @@ def _plot_normalized_per_agent_predicted_rewards(
     agent_averaged: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
     for agent_id, series_list in all_agent_series.items():
         if series_list:
-            episodes, means, stds = _align_series(series_list)
+            episodes, means, stds, _ = _align_series(series_list)
             if len(episodes) > 0:
                 agent_averaged[agent_id] = (episodes, means, stds)
     
@@ -609,44 +641,48 @@ def plot_multiple_runs(
                 all_agent_pred_rewards[agent_id] = []
             all_agent_pred_rewards[agent_id].append(series)
     
-    # Compute averages and stds
-    rewards_averaged: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+    # Compute averages, stds, and SEs
+    rewards_averaged: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = {}
     for key, series_list in all_reward_series.items():
         if series_list:
-            episodes, means, stds = _align_series(series_list)
+            episodes, means, stds, ses = _align_series(series_list)
             if len(episodes) > 0:
-                rewards_averaged[key] = (episodes, means, stds)
+                rewards_averaged[key] = (episodes, means, stds, ses)
     
-    social_averaged: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+    social_averaged: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = {}
     for name, series_list in all_social_series.items():
         if series_list:
-            episodes, means, stds = _align_series(series_list)
+            episodes, means, stds, ses = _align_series(series_list)
             if len(episodes) > 0:
-                social_averaged[name] = (episodes, means, stds)
+                social_averaged[name] = (episodes, means, stds, ses)
     
     # Normalize if requested
     if normalize:
         # Normalize each metric to [0, 1]
         for key in rewards_averaged:
-            episodes, means, stds = rewards_averaged[key]
+            episodes, means, stds, ses = rewards_averaged[key]
             min_val = np.nanmin(means)
             max_val = np.nanmax(means)
             if max_val > min_val:
                 means = (means - min_val) / (max_val - min_val)
                 stds = stds / (max_val - min_val)
-            rewards_averaged[key] = (episodes, means, stds)
+                ses = ses / (max_val - min_val)
+            rewards_averaged[key] = (episodes, means, stds, ses)
         
         for name in social_averaged:
-            episodes, means, stds = social_averaged[name]
+            episodes, means, stds, ses = social_averaged[name]
             min_val = np.nanmin(means)
             max_val = np.nanmax(means)
             if max_val > min_val:
                 means = (means - min_val) / (max_val - min_val)
                 stds = stds / (max_val - min_val)
-            social_averaged[name] = (episodes, means, stds)
+                ses = ses / (max_val - min_val)
+            social_averaged[name] = (episodes, means, stds, ses)
     
-    # Create output directory
+    # Create output directory and SE subdirectory
     os.makedirs(output_dir, exist_ok=True)
+    se_output_dir = os.path.join(output_dir, "with_se")
+    os.makedirs(se_output_dir, exist_ok=True)
     
     # Generate titles (more concise for publication)
     algo_display = algo_name.upper() if algo_name != "unknown" else "Unknown"
@@ -667,7 +703,7 @@ def plot_multiple_runs(
         reward_ylabel = "Reward"
         social_ylabel = "Metric Value"
     
-    # Plot rewards
+    # Plot rewards (with STD)
     rewards_path = os.path.join(output_dir, "rewards_averaged.png")
     rewards_plotted = _plot_multiple_averaged_series(
         rewards_averaged,
@@ -677,9 +713,23 @@ def plot_multiple_runs(
         smooth_window=smooth_window,
         error_bar_step=10,
         show_title=show_title,
+        use_se=False,
     )
     
-    # Plot social metrics
+    # Plot rewards (with SE)
+    rewards_se_path = os.path.join(se_output_dir, "rewards_averaged.png")
+    _plot_multiple_averaged_series(
+        rewards_averaged,
+        title=reward_title,
+        ylabel=reward_ylabel,
+        output_path=rewards_se_path,
+        smooth_window=smooth_window,
+        error_bar_step=10,
+        show_title=show_title,
+        use_se=True,
+    )
+    
+    # Plot social metrics (with STD)
     social_path = os.path.join(output_dir, "social_metrics_averaged.png")
     if normalize:
         social_plotted = _plot_multiple_averaged_series(
@@ -692,6 +742,21 @@ def plot_multiple_runs(
             line_color=None,  # Use default blue color
             error_bar_color='black',
             show_title=show_title,
+            use_se=False,
+        )
+        # Also plot with SE
+        social_se_path = os.path.join(se_output_dir, "social_metrics_averaged.png")
+        _plot_multiple_averaged_series(
+            social_averaged,
+            title=social_title,
+            ylabel=social_ylabel,
+            output_path=social_se_path,
+            smooth_window=smooth_window,
+            error_bar_step=10,
+            line_color=None,
+            error_bar_color='black',
+            show_title=show_title,
+            use_se=True,
         )
     else:
         # Filter to only ordered social metrics
@@ -709,6 +774,18 @@ def plot_multiple_runs(
             smooth_window=smooth_window,
             error_bar_step=10,
             show_title=show_title,
+            use_se=False,
+        )
+        # Also plot with SE
+        social_se_path = os.path.join(se_output_dir, "social_metrics_averaged.png")
+        _plot_social_subplots_averaged(
+            ordered_social,
+            title=social_title,
+            output_path=social_se_path,
+            smooth_window=smooth_window,
+            error_bar_step=10,
+            show_title=show_title,
+            use_se=True,
         )
     
     # Plot normalized per-agent predicted rewards

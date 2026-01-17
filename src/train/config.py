@@ -40,27 +40,27 @@ class DQNConfig:
 
 
 @dataclass
-class PPOConfig:
-    policy: str = "MultiInputPolicy"
-    total_timesteps: int = 100_000
-    per_agent_timesteps: int = 100_000
+class IPPOConfig:
     learning_rate: float = 3e-4
     gamma: float = 0.99
-    n_steps: int = 1024
-    batch_size: int = 256
     gae_lambda: float = 0.95
     clip_range: float = 0.2
-    ent_coef: float = 0.0
+    ent_coef: float = 0.1
+    ent_coef_end: float = 0.01
     vf_coef: float = 0.5
-    policy_kwargs: Dict[str, Any] = field(default_factory=dict)
-    flatten_obs: bool = True
-    multi_agent_mode: str = "independent"
-    opponent_policy: str = "random"
+    vf_clip: Optional[float] = 10.0
+    n_steps: int = 512
+    batch_size: int = 128
+    update_epochs: int = 2
+    hidden_size: int = 256
+    max_grad_norm: float = 0.5
+    normalize_obs: bool = True
+    flatten_obs: bool = False
     device: str = "auto"
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "PPOConfig":
-        return PPOConfig(**data)
+    def from_dict(data: Dict[str, Any]) -> "IPPOConfig":
+        return IPPOConfig(**data)
 
 
 @dataclass
@@ -89,18 +89,18 @@ class MAPPOConfig:
 class AlgorithmConfig:
     name: str = "dqn"
     dqn: DQNConfig = field(default_factory=DQNConfig)
-    ppo: PPOConfig = field(default_factory=PPOConfig)
+    ippo: IPPOConfig = field(default_factory=IPPOConfig)
     mappo: MAPPOConfig = field(default_factory=MAPPOConfig)
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "AlgorithmConfig":
         dqn = DQNConfig.from_dict(data.get("dqn", {}))
-        ppo = PPOConfig.from_dict(data.get("ppo", {}))
+        ippo = IPPOConfig.from_dict(data.get("ippo", {}))
         mappo = MAPPOConfig.from_dict(data.get("mappo", {}))
         return AlgorithmConfig(
             name=data.get("name", "dqn"),
             dqn=dqn,
-            ppo=ppo,
+            ippo=ippo,
             mappo=mappo,
         )
 
@@ -180,7 +180,7 @@ def save_config(path: str, config: TrainerConfig) -> None:
         "algorithm": {
             "name": config.algorithm.name,
             "dqn": config.algorithm.dqn.__dict__,
-            "ppo": config.algorithm.ppo.__dict__,
+            "ippo": config.algorithm.ippo.__dict__,
             "mappo": config.algorithm.mappo.__dict__,
         },
         "logging": config.logging.__dict__,
