@@ -12,6 +12,7 @@ Key pieces:
 - `src/env/maps.py`: ASCII map layouts used for spawning walls/apples/agents.
 - `src/reward_model/`: MARP-style preference-based reward model and training utilities.
 - `src/train/metrics.py`: Agent-specific metrics calculation (nearby apples, cluster detection).
+- `scripts/plot_phi_comparisons.py`: Phi comparison plots and NV vs IA social metrics galleries.
 
 ## Training (configurable trainer)
 
@@ -218,6 +219,7 @@ The `phi` parameter determines how social metrics are combined into a single pre
 | `efficiency_x_sustainability` | efficiency × sustainability | Balance resource collection with long-term resource availability |
 | `efficiency_x_peace_x_equality` | efficiency × peace × equality | Balance all three: collection, fairness, and non-aggression |
 | `equality_x_peace` | equality × peace | Promote fair distribution and non-aggressive behavior |
+| `efficiency_x_peace_x_equality_x_sustainability` | efficiency × peace × equality × sustainability | Balance all four metrics: collection, fairness, non-aggression, and long-term resource availability |
 
 ### Performance optimization options
 
@@ -262,6 +264,7 @@ Options:
 - `--smooth N`: moving average window (episodes); also adds a faded ±1 std band.
 - `--normalize`: normalize each series to [0, 1] and plot social metrics on one graph.
 - `--no-title`: hide titles from all plots (useful for publication figures where titles are added in captions).
+- `--single-plots`: generate individual plot files for each social metric (`social_efficiency.png`, `social_equality.png`, etc.) instead of a combined 2x2 subplot.
 
 ### Plotting multiple runs (averaged)
 
@@ -280,6 +283,7 @@ Outputs:
 - `plots_averaged/rewards_averaged.png` (or custom output directory)
 - `plots_averaged/social_metrics_averaged.png`
 - `plots_averaged/agent_predicted_rewards_normalized.png` (normalized per-agent predicted rewards)
+- `plots_averaged/with_se/` - Same plots using Standard Error (SE) instead of Standard Deviation (STD)
 
 Options:
 - `--output-dir DIR` or `-o DIR`: output directory for plots (default: `plots_averaged`).
@@ -287,7 +291,11 @@ Options:
 - `--normalize`: normalize each metric series to [0, 1] and plot social metrics on one graph.
 - `--no-title`: hide titles from all plots (useful for publication figures where titles are added in captions).
 
-The script computes mean and standard deviation across all runs for each episode, with standard deviation shown as shaded regions around the mean.
+The script computes mean, standard deviation (STD), and standard error (SE) across all runs for each episode:
+- **Standard Deviation (STD)**: Measures variability in the data: `STD = sqrt(Σ(x-μ)²/(n-1))`
+- **Standard Error (SE)**: Measures uncertainty in the mean: `SE = STD / sqrt(n)`
+
+STD is shown as shaded regions in the main output folder, SE versions are saved in the `with_se/` subfolder. SE is typically preferred for publication as it reflects confidence in the mean and shrinks with more runs.
 
 **Publication Quality:** Plots are generated with publication-quality settings:
 - 300 DPI resolution (suitable for high-quality printing)
@@ -329,13 +337,20 @@ python scripts/process_all_sessions.py --no-title
 
 **Comparison outputs** (`logs/comparisons/`):
 - `by_approach/`: Compare approaches (narrow view vs input aggregation) for same social target
-  - `with_std/`: Same plots with standard deviation shading
+  - `with_std/`: Same plots with standard deviation (STD) shading
+  - `with_se/`: Same plots with standard error (SE) shading
 - `by_target/`: Compare social targets for same approach
-  - `with_std/`: Same plots with standard deviation shading
+  - `with_std/`: Same plots with standard deviation (STD) shading
+  - `with_se/`: Same plots with standard error (SE) shading
 - `all_sessions/`: All sessions overlaid + grid comparisons
-  - `with_std/`: Same plots with standard deviation shading
+  - `with_std/`: Same plots with standard deviation (STD) shading
+  - `with_se/`: Same plots with standard error (SE) shading
 - `summary_bars/`: Bar charts with final and average values
   - `normalized/`: Same bar charts with values normalized to [0, 1] per metric for better cross-metric comparison
+
+**Error bars explanation:**
+- **Standard Deviation (STD)**: Shows the variability/spread of individual runs around the mean
+- **Standard Error (SE)**: Shows the uncertainty in the estimated mean (SE = STD / √n, shrinks with more runs)
 
 **Session naming convention:**
 Sessions are automatically parsed from the format `"{approach} - {social_target}"`. New social targets are automatically integrated into comparisons by adding sessions following this naming convention.
@@ -343,6 +358,57 @@ Sessions are automatically parsed from the format `"{approach} - {social_target}
 Example session names:
 - `"narrow view - efficiency"`
 - `"input aggregation - efficiency x peace"`
+
+### Plotting phi comparisons and NV vs IA galleries
+
+Generate comparison plots for different phi values and social metrics galleries:
+
+```bash
+python scripts/plot_phi_comparisons.py --algorithm ippo
+```
+
+This script produces two types of plots:
+
+**A. Phi Comparison Plots** - Compare efficiency metric across 4 configurations:
+- Narrow View with φ=efficiency vs φ=efficiency×\<social\>
+- Input Aggregation with φ=efficiency vs φ=efficiency×\<social\>
+
+Generated for peace, equality, and sustainability social targets.
+
+**B. Social Metrics Gallery (2x2)** - Compare all 4 social metrics (efficiency, equality, sustainability, peace) between Narrow View and Input Aggregation:
+- Overall comparison (averaged across all phi values)
+- Per-phi galleries (efficiency, efficiency×peace, efficiency×equality, efficiency×sustainability)
+
+All plots use Standard Error (SE) for shading.
+
+**CLI options:**
+
+```bash
+# Use IPPO sessions (default)
+python scripts/plot_phi_comparisons.py --algorithm ippo
+
+# Use MAPPO sessions
+python scripts/plot_phi_comparisons.py --algorithm mappo
+
+# Custom output directory
+python scripts/plot_phi_comparisons.py -o custom/output/dir
+
+# Hide titles (for publication figures)
+python scripts/plot_phi_comparisons.py --no-title
+
+# Custom smoothing window (default: 10)
+python scripts/plot_phi_comparisons.py --smooth 20
+```
+
+The script generates both unsmoothed and smoothed versions of all plots. Smoothing applies a moving average to the mean line while keeping SE (standard error) bands unchanged.
+
+**Outputs** (`logs/<algorithm>/comparisons/phi_comparisons/`):
+- `phi_comparison_efficiency_vs_peace.png` - Peace metric comparison: φ=efficiency vs φ=efficiency×peace
+- `phi_comparison_efficiency_vs_equality.png` - Equality metric comparison: φ=efficiency vs φ=efficiency×equality
+- `phi_comparison_efficiency_vs_sustainability.png` - Sustainability metric comparison: φ=efficiency vs φ=efficiency×sustainability
+- `social_metrics_gallery_nv_vs_ia_overall.png` - Overall NV vs IA comparison
+- `social_metrics_gallery_<phi>.png` - Per-phi social metrics galleries
+- `smoothed_<N>/` - Subdirectory with smoothed versions (same files, moving average applied to means)
 
 ## Running IPPO
 

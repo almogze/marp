@@ -199,6 +199,45 @@ def _load_run_context(run_dir: str) -> Tuple[str, str]:
     return algo_name, rm_phi
 
 
+def _plot_single_social_metric(
+    name: str,
+    points: List[Tuple[int, float]],
+    output_path: str,
+    smooth_window: int,
+    show_title: bool = True,
+) -> bool:
+    """Plot a single social metric as an individual graph."""
+    if not points:
+        return False
+    
+    smoothed_points, stds = _smooth_points_with_std(points, smooth_window)
+    xs = [episode for episode, _ in smoothed_points]
+    ys = [value for _, value in smoothed_points]
+    
+    fig, ax = plt.subplots(figsize=(6, 4))
+    color = PUBLICATION_COLORS[0]
+    
+    ax.plot(xs, ys, label=name.capitalize(), color=color, linewidth=2.0, zorder=2)
+    if smooth_window > 1 and stds:
+        lower = [y - s for y, s in zip(ys, stds)]
+        upper = [y + s for y, s in zip(ys, stds)]
+        ax.fill_between(xs, lower, upper, alpha=0.25, color=color, zorder=1)
+    
+    ax.set_xlabel("Episode", fontweight='normal')
+    ax.set_ylabel(name.capitalize(), fontweight='normal')
+    if show_title:
+        ax.set_title(name.capitalize(), fontweight='bold', pad=10)
+    ax.grid(True, linestyle='--', alpha=0.3, linewidth=0.5, zorder=0)
+    ax.legend(loc='best', frameon=True, fancybox=True, shadow=False, framealpha=0.9)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    plt.tight_layout()
+    fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.close(fig)
+    return True
+
+
 def _plot_social_subplots(
     series: Dict[str, List[Tuple[int, float]]],
     title: str,
@@ -636,7 +675,8 @@ def generate_agent_predicted_reward_plots(
 
 
 def generate_run_plots(
-    run_dir: str, smooth_window: int, normalize: bool, show_title: bool = True
+    run_dir: str, smooth_window: int, normalize: bool, show_title: bool = True,
+    single_plots: bool = False
 ) -> Tuple[bool, bool]:
     metrics_path = os.path.join(run_dir, "metrics.jsonl")
     if not os.path.isfile(metrics_path):
@@ -691,7 +731,16 @@ def generate_run_plots(
         smooth_window=smooth_window,
         show_title=show_title,
     )
-    if normalize:
+    
+    # Generate single plots for each social metric if requested
+    if single_plots:
+        social_plotted = False
+        for name, points in social_series.items():
+            if points:
+                single_path = os.path.join(plots_dir, f"social_{name}.png")
+                if _plot_single_social_metric(name, points, single_path, smooth_window, show_title):
+                    social_plotted = True
+    elif normalize:
         social_plotted = _plot_series(
             social_series,
             title=social_title,
@@ -735,6 +784,11 @@ def main() -> int:
         action="store_true",
         help="Hide titles from all plots.",
     )
+    parser.add_argument(
+        "--single-plots",
+        action="store_true",
+        help="Generate individual plot files for each social metric instead of a combined subplot.",
+    )
     args = parser.parse_args()
 
     path = args.run_dir
@@ -750,13 +804,17 @@ def main() -> int:
         smooth_window=args.smooth,
         normalize=args.normalize,
         show_title=show_title,
+        single_plots=args.single_plots,
     )
     if rewards_plotted:
         print(f"Saved rewards plot to {os.path.join(run_dir, 'plots', 'rewards.png')}")
     else:
         print("No reward metrics found to plot.")
     if social_plotted:
-        print(f"Saved social metrics plot to {os.path.join(run_dir, 'plots', 'social_metrics.png')}")
+        if args.single_plots:
+            print(f"Saved individual social metric plots to {os.path.join(run_dir, 'plots', 'social_<metric>.png')}")
+        else:
+            print(f"Saved social metrics plot to {os.path.join(run_dir, 'plots', 'social_metrics.png')}")
     else:
         print("No social metrics found to plot.")
     

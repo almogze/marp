@@ -154,6 +154,20 @@ IPPO_SESSIONS = {
         "logs/ippo/narrow view - efficiency x peace/20260110-234414-ippo-map=medium-agents=5-rm=narrow_view-seed=1920066599",
         "logs/ippo/narrow view - efficiency x peace/20260111-005421-ippo-map=medium-agents=5-rm=narrow_view-seed=309879235",
     ],
+    "narrow view - efficiency x sustainability": [
+        "logs/ippo/narrow view - efficiency x sustainability/20260112-201617-ippo-map=medium-agents=5-rm=narrow_view-seed=561436384",
+        "logs/ippo/narrow view - efficiency x sustainability/20260112-214849-ippo-map=medium-agents=5-rm=narrow_view-seed=753606103",
+        "logs/ippo/narrow view - efficiency x sustainability/20260112-232428-ippo-map=medium-agents=5-rm=narrow_view-seed=1942773740",
+        "logs/ippo/narrow view - efficiency x sustainability/20260113-005233-ippo-map=medium-agents=5-rm=narrow_view-seed=786488349",
+        "logs/ippo/narrow view - efficiency x sustainability/20260113-021501-ippo-map=medium-agents=5-rm=narrow_view-seed=200911148",
+    ],
+    "input aggregation - efficiency x sustainability": [
+        "logs/ippo/input aggregation - efficiency x sustainability/20260113-033733-ippo-map=medium-agents=5-rm=input_aggregation-seed=1585480120",
+        "logs/ippo/input aggregation - efficiency x sustainability/20260113-045948-ippo-map=medium-agents=5-rm=input_aggregation-seed=784728388",
+        "logs/ippo/input aggregation - efficiency x sustainability/20260113-062559-ippo-map=medium-agents=5-rm=input_aggregation-seed=513802420",
+        "logs/ippo/input aggregation - efficiency x sustainability/20260113-075123-ippo-map=medium-agents=5-rm=input_aggregation-seed=1913750779",
+        "logs/ippo/input aggregation - efficiency x sustainability/20260113-091805-ippo-map=medium-agents=5-rm=input_aggregation-seed=1796633424",
+    ],
 }
 
 # Default to MAPPO sessions for backward compatibility
@@ -636,6 +650,7 @@ def _plot_predicted_reward_all_runs(
     output_path: str,
     show_std: bool = True,
     show_title: bool = True,
+    use_se: bool = False,
 ) -> bool:
     """
     Plot predicted reward for all runs, one line per category (condition or action).
@@ -647,8 +662,9 @@ def _plot_predicted_reward_all_runs(
         category_labels: display labels for categories
         title: plot title
         output_path: where to save
-        show_std: whether to show standard deviation shading
+        show_std: whether to show error shading (std or se)
         show_title: whether to show the title
+        use_se: if True, use standard error instead of std for shading
     """
     # First, align all runs and compute mean per category
     # Get all episodes across all runs
@@ -664,9 +680,10 @@ def _plot_predicted_reward_all_runs(
     
     episodes = sorted(all_episodes)
     
-    # For each category, compute mean across runs at each episode
+    # For each category, compute mean, std, and SE across runs at each episode
     category_means: Dict[str, List[float]] = {cat: [] for cat in categories}
     category_stds: Dict[str, List[float]] = {cat: [] for cat in categories}
+    category_ses: Dict[str, List[float]] = {cat: [] for cat in categories}
     
     for ep in episodes:
         for cat in categories:
@@ -680,11 +697,17 @@ def _plot_predicted_reward_all_runs(
                         values_at_ep.append(series_dict[ep])
             
             if values_at_ep:
-                category_means[cat].append(np.mean(values_at_ep))
-                category_stds[cat].append(np.std(values_at_ep))
+                n = len(values_at_ep)
+                mean_val = np.mean(values_at_ep)
+                std_val = np.std(values_at_ep, ddof=1) if n > 1 else 0.0
+                se_val = std_val / np.sqrt(n) if n > 0 else 0.0
+                category_means[cat].append(mean_val)
+                category_stds[cat].append(std_val)
+                category_ses[cat].append(se_val)
             else:
                 category_means[cat].append(np.nan)
                 category_stds[cat].append(np.nan)
+                category_ses[cat].append(np.nan)
     
     # Plot
     fig, ax = plt.subplots(figsize=(6, 4))
@@ -693,7 +716,7 @@ def _plot_predicted_reward_all_runs(
     
     for cat in categories:
         means = category_means[cat]
-        stds = category_stds[cat]
+        errors = category_ses[cat] if use_se else category_stds[cat]
         
         if all(np.isnan(m) for m in means):
             continue
@@ -703,10 +726,10 @@ def _plot_predicted_reward_all_runs(
         
         ax.plot(episodes, means, label=label, color=color, linewidth=2.0, zorder=2)
         
-        # Add shaded std region if requested
+        # Add shaded error region if requested
         if show_std:
-            lower = [m - s if not np.isnan(m) else np.nan for m, s in zip(means, stds)]
-            upper = [m + s if not np.isnan(m) else np.nan for m, s in zip(means, stds)]
+            lower = [m - e if not np.isnan(m) else np.nan for m, e in zip(means, errors)]
+            upper = [m + e if not np.isnan(m) else np.nan for m, e in zip(means, errors)]
             ax.fill_between(episodes, lower, upper, alpha=0.25, color=color, zorder=1)
         plotted = True
     
@@ -742,22 +765,23 @@ def _load_session_averaged_social_metrics(
     Returns:
         {metric_name: [(episode, avg_value), ...]}
     """
-    means, _ = _load_session_social_metrics_with_std(session_name, base_dir, sessions)
+    means, _, _ = _load_session_social_metrics_with_std(session_name, base_dir, sessions)
     return means
 
 
 def _load_session_social_metrics_with_std(
     session_name: str, base_dir: str, sessions: Dict[str, List[str]]
-) -> Tuple[Dict[str, List[Tuple[int, float]]], Dict[str, List[Tuple[int, float]]]]:
+) -> Tuple[Dict[str, List[Tuple[int, float]]], Dict[str, List[Tuple[int, float]]], Dict[str, List[Tuple[int, float]]]]:
     """
-    Load social metrics across all runs in a session, returning both mean and std.
+    Load social metrics across all runs in a session, returning mean, std, and SE.
     
     Returns:
-        (means, stds) where each is {metric_name: [(episode, value), ...]}
+        (means, stds, ses) where each is {metric_name: [(episode, value), ...]}
+        SE = std / sqrt(n) where n is number of runs at each episode
     """
     run_dirs = sessions.get(session_name, [])
     if not run_dirs:
-        return {}, {}
+        return {}, {}, {}
     
     # Collect all series from all runs
     all_runs_series: Dict[str, Dict[int, List[float]]] = {name: {} for name in SOCIAL_ORDER}
@@ -778,20 +802,26 @@ def _load_session_social_metrics_with_std(
                     all_runs_series[metric_name][episode] = []
                 all_runs_series[metric_name][episode].append(value)
     
-    # Compute mean and std across runs
+    # Compute mean, std, and SE across runs
     means: Dict[str, List[Tuple[int, float]]] = {}
     stds: Dict[str, List[Tuple[int, float]]] = {}
+    ses: Dict[str, List[Tuple[int, float]]] = {}
     
     for metric_name, ep_values in all_runs_series.items():
         means[metric_name] = []
         stds[metric_name] = []
+        ses[metric_name] = []
         for episode in sorted(ep_values.keys()):
             values = ep_values[episode]
             if values:
+                n = len(values)
+                std_val = np.std(values, ddof=1) if n > 1 else 0.0
+                se_val = std_val / np.sqrt(n) if n > 0 else 0.0
                 means[metric_name].append((episode, np.mean(values)))
-                stds[metric_name].append((episode, np.std(values)))
+                stds[metric_name].append((episode, std_val))
+                ses[metric_name].append((episode, se_val))
     
-    return means, stds
+    return means, stds, ses
 
 
 def _load_session_averaged_rewards(
@@ -1208,11 +1238,17 @@ def generate_all_comparisons(
     by_target_std_dir = os.path.join(by_target_dir, "with_std")
     all_sessions_std_dir = os.path.join(all_sessions_dir, "with_std")
     
+    # Subdirectories for plots with SE (standard error) shading
+    by_approach_se_dir = os.path.join(by_approach_dir, "with_se")
+    by_target_se_dir = os.path.join(by_target_dir, "with_se")
+    all_sessions_se_dir = os.path.join(all_sessions_dir, "with_se")
+    
     # Subdirectory for normalized bar charts
     summary_bars_normalized_dir = os.path.join(summary_bars_dir, "normalized")
     
     for d in [by_approach_dir, by_target_dir, all_sessions_dir, summary_bars_dir,
               by_approach_std_dir, by_target_std_dir, all_sessions_std_dir,
+              by_approach_se_dir, by_target_se_dir, all_sessions_se_dir,
               summary_bars_normalized_dir]:
         os.makedirs(d, exist_ok=True)
     
@@ -1225,16 +1261,18 @@ def generate_all_comparisons(
     print(f"\nApproaches: {approaches}")
     print(f"Social targets: {targets}")
     
-    # Load all session data (means and stds)
+    # Load all session data (means, stds, and SEs)
     print("\n[1] Loading data from all sessions...")
     all_social_data: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
     all_social_std: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
+    all_social_se: Dict[str, Dict[str, List[Tuple[int, float]]]] = {}
     all_rewards_data: Dict[str, List[Tuple[int, float]]] = {}
     
     for session_name in sessions.keys():
-        means, stds = _load_session_social_metrics_with_std(session_name, base_dir, sessions)
+        means, stds, ses = _load_session_social_metrics_with_std(session_name, base_dir, sessions)
         all_social_data[session_name] = means
         all_social_std[session_name] = stds
+        all_social_se[session_name] = ses
         all_rewards_data[session_name] = _load_session_averaged_rewards(session_name, base_dir, sessions)
         print(f"  Loaded: {session_name}")
     
@@ -1248,18 +1286,22 @@ def generate_all_comparisons(
         for metric_name in SOCIAL_ORDER:
             sessions_data = {}
             sessions_std = {}
+            sessions_se = {}
             for session_name in session_names:
                 _, target = parse_session_name(session_name)
                 label = _format_target_label(target)
                 data = all_social_data.get(session_name, {}).get(metric_name, [])
                 std_data = all_social_std.get(session_name, {}).get(metric_name, [])
+                se_data = all_social_se.get(session_name, {}).get(metric_name, [])
                 if data:
                     sessions_data[label] = data
                     if std_data:
                         sessions_std[label] = std_data
+                    if se_data:
+                        sessions_se[label] = se_data
             
             if sessions_data:
-                # Without std
+                # Without std/se
                 output_path = os.path.join(
                     by_target_dir, 
                     f"compare_{approach}_{metric_name}.png"
@@ -1283,6 +1325,18 @@ def generate_all_comparisons(
                 )
                 if plotted_std:
                     print(f"  [OK] {approach} - {metric_name} (with std)")
+                
+                # With SE
+                output_path_se = os.path.join(
+                    by_target_se_dir,
+                    f"compare_{approach}_{metric_name}.png"
+                )
+                plotted_se = plot_overlay_comparison(
+                    sessions_data, title, metric_name.capitalize(), output_path_se,
+                    sessions_std=sessions_se, show_title=show_title
+                )
+                if plotted_se:
+                    print(f"  [OK] {approach} - {metric_name} (with se)")
         
         # Rewards
         sessions_data = {}
@@ -1311,18 +1365,22 @@ def generate_all_comparisons(
         for metric_name in SOCIAL_ORDER:
             sessions_data = {}
             sessions_std = {}
+            sessions_se = {}
             for session_name in session_names:
                 approach, _ = parse_session_name(session_name)
                 label = _format_approach_label(approach)
                 data = all_social_data.get(session_name, {}).get(metric_name, [])
                 std_data = all_social_std.get(session_name, {}).get(metric_name, [])
+                se_data = all_social_se.get(session_name, {}).get(metric_name, [])
                 if data:
                     sessions_data[label] = data
                     if std_data:
                         sessions_std[label] = std_data
+                    if se_data:
+                        sessions_se[label] = se_data
             
             if sessions_data:
-                # Without std
+                # Without std/se
                 output_path = os.path.join(
                     by_approach_dir, 
                     f"compare_{target}_{metric_name}.png"
@@ -1346,6 +1404,18 @@ def generate_all_comparisons(
                 )
                 if plotted_std:
                     print(f"  [OK] {target} - {metric_name} (with std)")
+                
+                # With SE
+                output_path_se = os.path.join(
+                    by_approach_se_dir,
+                    f"compare_{target}_{metric_name}.png"
+                )
+                plotted_se = plot_overlay_comparison(
+                    sessions_data, title, metric_name.capitalize(), output_path_se,
+                    sessions_std=sessions_se, show_title=show_title
+                )
+                if plotted_se:
+                    print(f"  [OK] {target} - {metric_name} (with se)")
         
         # Rewards
         sessions_data = {}
@@ -1372,18 +1442,22 @@ def generate_all_comparisons(
     for metric_name in SOCIAL_ORDER:
         sessions_data = {}
         sessions_std = {}
+        sessions_se = {}
         for session_name in sessions.keys():
             approach, target = parse_session_name(session_name)
             label = f"{_format_approach_label(approach)} - {_format_target_label(target)}"
             data = all_social_data.get(session_name, {}).get(metric_name, [])
             std_data = all_social_std.get(session_name, {}).get(metric_name, [])
+            se_data = all_social_se.get(session_name, {}).get(metric_name, [])
             if data:
                 sessions_data[label] = data
                 if std_data:
                     sessions_std[label] = std_data
+                if se_data:
+                    sessions_se[label] = se_data
         
         if sessions_data:
-            # Without std
+            # Without std/se
             output_path = os.path.join(all_sessions_dir, f"compare_all_{metric_name}.png")
             title = f"{metric_name.capitalize()} - All Sessions"
             plotted = plot_overlay_comparison(
@@ -1401,6 +1475,15 @@ def generate_all_comparisons(
             )
             if plotted_std:
                 print(f"  [OK] all sessions - {metric_name} (with std)")
+            
+            # With SE
+            output_path_se = os.path.join(all_sessions_se_dir, f"compare_all_{metric_name}.png")
+            plotted_se = plot_overlay_comparison(
+                sessions_data, title, metric_name.capitalize(), output_path_se,
+                sessions_std=sessions_se, show_title=show_title
+            )
+            if plotted_se:
+                print(f"  [OK] all sessions - {metric_name} (with se)")
     
     # Rewards - all sessions
     sessions_data = {}
@@ -1577,10 +1660,13 @@ def generate_all_comparisons(
     print(f"\nOutput directories:")
     print(f"  - By approach: {by_approach_dir}")
     print(f"    - With std: {by_approach_std_dir}")
+    print(f"    - With SE: {by_approach_se_dir}")
     print(f"  - By target: {by_target_dir}")
     print(f"    - With std: {by_target_std_dir}")
+    print(f"    - With SE: {by_target_se_dir}")
     print(f"  - All sessions: {all_sessions_dir}")
     print(f"    - With std: {all_sessions_std_dir}")
+    print(f"    - With SE: {all_sessions_se_dir}")
     print(f"  - Summary bars: {summary_bars_dir}")
     print(f"    - Normalized: {summary_bars_normalized_dir}")
 
@@ -1682,16 +1768,28 @@ def process_session(
         "four_plus_apples_nearby": "Eat, +4 apples nearby",
     }
     
+    # Create SE subdirectory
+    se_output_dir = os.path.join(session_output_dir, "with_se")
+    os.makedirs(se_output_dir, exist_ok=True)
+    
     # With std
     output_path = os.path.join(session_output_dir, "predicted_reward_by_condition_with_std.png")
     title = f"Predicted Reward by Condition ({_format_label(session_name)})"
     plotted = _plot_predicted_reward_all_runs(
-        all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=True, show_title=show_title
+        all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=True, show_title=show_title, use_se=False
     )
     if plotted:
         print(f"  [OK] Saved predicted reward by condition (with std)")
     
-    # Without std
+    # With SE
+    output_path = os.path.join(se_output_dir, "predicted_reward_by_condition_with_se.png")
+    plotted = _plot_predicted_reward_all_runs(
+        all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=True, show_title=show_title, use_se=True
+    )
+    if plotted:
+        print(f"  [OK] Saved predicted reward by condition (with se)")
+    
+    # Without std/se
     output_path = os.path.join(session_output_dir, "predicted_reward_by_condition_no_std.png")
     plotted = _plot_predicted_reward_all_runs(
         all_runs_condition, condition_categories, condition_labels, title, output_path, show_std=False, show_title=show_title
@@ -1715,12 +1813,20 @@ def process_session(
     output_path = os.path.join(session_output_dir, "predicted_reward_by_action_with_std.png")
     title = f"Predicted Reward by Action ({_format_label(session_name)})"
     plotted = _plot_predicted_reward_all_runs(
-        all_runs_action, action_categories, action_labels, title, output_path, show_std=True, show_title=show_title
+        all_runs_action, action_categories, action_labels, title, output_path, show_std=True, show_title=show_title, use_se=False
     )
     if plotted:
         print(f"  [OK] Saved predicted reward by action (with std)")
     
-    # Without std
+    # With SE
+    output_path = os.path.join(se_output_dir, "predicted_reward_by_action_with_se.png")
+    plotted = _plot_predicted_reward_all_runs(
+        all_runs_action, action_categories, action_labels, title, output_path, show_std=True, show_title=show_title, use_se=True
+    )
+    if plotted:
+        print(f"  [OK] Saved predicted reward by action (with se)")
+    
+    # Without std/se
     output_path = os.path.join(session_output_dir, "predicted_reward_by_action_no_std.png")
     plotted = _plot_predicted_reward_all_runs(
         all_runs_action, action_categories, action_labels, title, output_path, show_std=False, show_title=show_title
@@ -1753,12 +1859,20 @@ def process_session(
     output_path = os.path.join(session_output_dir, "predicted_reward_by_granular_condition_with_std.png")
     title = f"Predicted Reward by Granular Condition ({_format_label(session_name)})"
     plotted = _plot_predicted_reward_all_runs(
-        all_runs_granular_condition, granular_categories, granular_labels, title, output_path, show_std=True, show_title=show_title
+        all_runs_granular_condition, granular_categories, granular_labels, title, output_path, show_std=True, show_title=show_title, use_se=False
     )
     if plotted:
         print(f"  [OK] Saved predicted reward by granular condition (with std)")
     
-    # Without std
+    # With SE
+    output_path = os.path.join(se_output_dir, "predicted_reward_by_granular_condition_with_se.png")
+    plotted = _plot_predicted_reward_all_runs(
+        all_runs_granular_condition, granular_categories, granular_labels, title, output_path, show_std=True, show_title=show_title, use_se=True
+    )
+    if plotted:
+        print(f"  [OK] Saved predicted reward by granular condition (with se)")
+    
+    # Without std/se
     output_path = os.path.join(session_output_dir, "predicted_reward_by_granular_condition_no_std.png")
     plotted = _plot_predicted_reward_all_runs(
         all_runs_granular_condition, granular_categories, granular_labels, title, output_path, show_std=False, show_title=show_title
